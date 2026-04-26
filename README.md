@@ -1,4 +1,4 @@
-# docket
+# Docket
 
 A lightweight, terminal-first issue tracker built for teams that live in the CLI and work alongside AI agents. No database, no web UI — just structured Markdown files, a single `./task` script, and git.
 
