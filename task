@@ -214,6 +214,11 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+async function gitAdd(paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
+  await $`git add -f ${paths}`;
+}
+
 // ── flow.md helpers ───────────────────────────────────────────────────────────
 
 const FLOW_PATH = join(ROOT, "flow.md");
@@ -480,7 +485,7 @@ async function cmdClaim(args: string[]) {
   await cmdRender();
   changedFiles.push(FLOW_PATH);
 
-  await $`git add ${changedFiles}`;
+  await gitAdd(changedFiles);
   await $`git commit -m ${"claim(" + taskId + "): " + owner}`;
   console.log(`Claimed '${taskId}' by '${owner}'`);
 }
@@ -512,7 +517,7 @@ async function cmdRelease(args: string[]) {
   await cmdRender();
   changedFiles.push(FLOW_PATH);
 
-  await $`git add ${changedFiles}`;
+  await gitAdd(changedFiles);
   await $`git commit -m ${"release(" + taskId + ")"}`;
   console.log(`Released '${taskId}'`);
 }
@@ -550,8 +555,8 @@ async function cmdClose(args: string[]) {
   await cmdRender();
 
   // Stage new location, remove old from index
-  await $`git add ${newPath} ${FLOW_PATH}`;
-  if (idx !== -1) await $`git add ${ASSIGNMENTS_PATH}`;
+  await gitAdd([newPath, FLOW_PATH]);
+  if (idx !== -1) await gitAdd([ASSIGNMENTS_PATH]);
   await $`git add -u ${dirname(issuePath)}`;
   await $`git commit -m ${"close(" + taskId + ")"}`;
   console.log(`Closed '${taskId}' → ${relPath(newPath)}`);
@@ -861,7 +866,7 @@ Rules:
   writeFlow(replaceSection(flow, "## Issue Scratchpad", ""));
 
   const toAdd = [...newFiles, FLOW_PATH];
-  await $`git add ${toAdd}`;
+  await gitAdd(toAdd);
   await $`git commit -m ${"ingest: " + newFiles.length + " issue(s) created from scratchpad"}`;
   console.log(`\nIngested ${newFiles.length} issue(s).`);
 }
