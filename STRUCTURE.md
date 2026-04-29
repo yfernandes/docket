@@ -1,7 +1,7 @@
 # Tasks Workspace Structure
 
 Domain-based issue tracker for the Acme Store repo. `./task` is the CLI
-for all mutations — see `skills/use-task-cli.md` for agent usage.
+for all mutations — see `skills/README.md` for agent usage.
 
 ## Layout
 
@@ -14,7 +14,13 @@ for all mutations — see `skills/use-task-cli.md` for agent usage.
 ├── RULES.md
 ├── STRUCTURE.md
 ├── skills/
-│   └── use-task-cli.md         ← agent skill for using ./task
+│   ├── README.md               ← agent skill index
+│   ├── core/
+│   │   └── task-workflow.md    ← shared task workflow and invariants
+│   ├── agents/
+│   │   ├── claude-code.md      ← preconfigured agent skills
+│   │   └── ...
+│   └── use-task-cli.md         ← generic fallback skill
 ├── issues/
 │   ├── templates/
 │   │   └── issue.md            ← template for new issues
@@ -43,7 +49,7 @@ for all mutations — see `skills/use-task-cli.md` for agent usage.
 ### `task`
 
 The CLI. All commands auto-commit affected files. Run `./task help` for
-full usage or read `skills/use-task-cli.md`.
+full usage or read `skills/README.md`.
 
 ### `flow.md`
 
@@ -65,10 +71,11 @@ Created by `./task new`, archived to `done/` by `./task close`.
 
 Template used by `./task new` and `./task ingest` when generating issue files.
 
-### `skills/use-task-cli.md`
+### `skills/`
 
-Agent skill covering the full `./task` workflow: find, claim, work, close,
-ingest, health checks. Read this before doing any task work as an agent.
+Agent skills covering the full `./task` workflow: find, claim, work, close,
+ingest, health checks. Prefer a matching file in `skills/agents/`; use
+`skills/use-task-cli.md` as a generic fallback.
 
 ## Scopes
 

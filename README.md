@@ -76,7 +76,9 @@ Full usage: `./task help`
 | `assignments.yaml`          | Source of truth for task ownership          |
 | `issues/<scope>/<slug>.md`  | Structured issue files                      |
 | `issues/templates/issue.md` | Template used by `new` and `ingest`         |
-| `skills/use-task-cli.md`    | Agent skill — point your AI agents here     |
+| `skills/README.md`          | Agent skill index and install map           |
+| `skills/agents/*.md`        | Preconfigured skills for common AI agents   |
+| `skills/use-task-cli.md`    | Generic fallback skill for unlisted agents  |
 
 Built-in scopes: `backend`, `frontend`, `libs`, `cms` — add more by creating folders under `issues/`.
 
@@ -84,14 +86,29 @@ Built-in scopes: `backend`, `frontend`, `libs`, `cms` — add more by creating f
 
 ## For AI agents
 
-Point your agent at `skills/use-task-cli.md` and it will know how to find, claim, and close tasks autonomously. Agent claims require a `--lease <minutes>` so `./task doctor` can expire abandoned work automatically.
+Point your agent at the matching file in `skills/agents/` and it will know how
+to find, claim, release, and close tasks autonomously. Agent claims require a
+`--lease <minutes>` so `./task doctor` can expire abandoned work automatically.
+
+Preconfigured skills are included for Claude Code, Codex, Gemini CLI, GitHub
+Copilot, Cursor, Aider, Continue, and Windsurf. See `skills/README.md` for the
+full matrix.
 
 **Claude Code** — add to `CLAUDE.md`:
 
 ```markdown
 ## Task system
 
-@tasks/skills/use-task-cli.md
+@tasks/skills/agents/claude-code.md
+```
+
+**Codex** — add to `AGENTS.md`:
+
+```markdown
+## Task system
+
+Read `tasks/skills/agents/codex.md` before selecting, claiming, or closing
+docket tasks.
 ```
 
 **Gemini CLI** — add to `.gemini/GEMINI.md`:
@@ -99,10 +116,10 @@ Point your agent at `skills/use-task-cli.md` and it will know how to find, claim
 ```markdown
 ## Task system
 
-@tasks/skills/use-task-cli.md
+@tasks/skills/agents/gemini-cli.md
 ```
 
-See [SETUP.md](SETUP.md) for Copilot and Codex setup.
+See [SETUP.md](SETUP.md) for the full install matrix.
 
 ---
 

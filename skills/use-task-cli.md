@@ -1,5 +1,19 @@
 # Skill: use-task-cli
 
+Portable fallback skill for agents that do not have a preconfigured docket
+skill yet. Prefer the agent-specific files in `skills/agents/` when available:
+
+- `skills/agents/claude-code.md`
+- `skills/agents/codex.md`
+- `skills/agents/gemini-cli.md`
+- `skills/agents/github-copilot.md`
+- `skills/agents/cursor.md`
+- `skills/agents/aider.md`
+- `skills/agents/continue.md`
+- `skills/agents/windsurf.md`
+
+The shared invariant reference lives in `skills/core/task-workflow.md`.
+
 Use this skill whenever you need to interact with the task tracking system —
 claiming work, creating issues, checking system state, or closing tasks.
 

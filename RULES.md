@@ -59,11 +59,13 @@ for the lifetime of the task.
 
 ## Active skills
 
-| Skill                    | Purpose                          |
-| ------------------------ | -------------------------------- |
-| `skills/use-task-cli.md` | Primary — all task interactions  |
-| `plan-day`               | Discover and queue candidates    |
-| `create-issue`           | Scaffold a structured issue file |
+| Skill                          | Purpose                                |
+| ------------------------------ | -------------------------------------- |
+| `skills/agents/*.md`           | Primary — agent-specific task workflow |
+| `skills/core/task-workflow.md` | Shared task workflow and invariants    |
+| `skills/use-task-cli.md`       | Fallback — generic task interactions   |
+| `plan-day`                     | Discover and queue candidates          |
+| `create-issue`                 | Scaffold a structured issue file       |
 
 Archived workflows under `archive/` are reference-only.
 
