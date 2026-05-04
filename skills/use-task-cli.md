@@ -202,7 +202,7 @@ docket restores the touched task files before returning the error.
 To update docket:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/update.sh | bash
+curl -fsSL https://raw.githubusercontent.com/yfernandes/docket/refs/heads/main/scripts/update.sh | bash
 ```
 
 Run it from the docket worktree or from a main repo root whose `./task` symlink

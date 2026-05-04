@@ -22,7 +22,7 @@ Most issue trackers are built around the browser. docket is built around the ter
 
 ```bash
 # Install (see SETUP.md for full instructions)
-curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/yfernandes/docket/refs/heads/main/scripts/setup.sh | bash
 
 # Create an issue
 ./task new backend "Add rate limiting to cart endpoint"
@@ -116,7 +116,7 @@ fails, the CLI restores the touched task files before surfacing the error.
 To update an existing install:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/update.sh | bash
+curl -fsSL https://raw.githubusercontent.com/yfernandes/docket/refs/heads/main/scripts/update.sh | bash
 ```
 
 Run the updater from the docket worktree itself (`tasks/`) or from the main repo
@@ -179,7 +179,7 @@ See [RULES.md](RULES.md) for the full invariant spec and [STRUCTURE.md](STRUCTUR
 Issues and PRs welcome. docket is a Bun/TypeScript script with no build step — clone, edit `task`, and run it directly.
 
 ```bash
-git clone https://github.com/yagoalmeida/docket
+git clone https://github.com/yfernandes/docket
 cd docket
 bun task help
 ```

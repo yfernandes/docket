@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DOCKET_REPO="${DOCKET_REPO:-yagoalmeida/docket}"
+DOCKET_REPO="${DOCKET_REPO:-yfernandes/docket}"
 DOCKET_REF="${DOCKET_REF:-main}"
 DOCKET_ARCHIVE_URL="${DOCKET_ARCHIVE_URL:-}"
 DOCKET_DIR="${DOCKET_DIR:-tasks}"
@@ -20,7 +20,7 @@ Usage: setup.sh [--yes]
 Install docket into the current git repository as an orphan worktree.
 
 Environment:
-  DOCKET_REPO     GitHub repo to install from (default: yagoalmeida/docket)
+  DOCKET_REPO     GitHub repo to install from (default: yfernandes/docket)
   DOCKET_REF      Git ref to install from (default: main)
   DOCKET_ARCHIVE_URL
                  Archive URL override for tests or mirrors

@@ -101,8 +101,8 @@ state on the task worktree rather than the application branch.
 Curl-friendly helpers for installing and updating docket:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/setup.sh | bash
-curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/update.sh | bash
+curl -fsSL https://raw.githubusercontent.com/yfernandes/docket/refs/heads/main/scripts/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/yfernandes/docket/refs/heads/main/scripts/update.sh | bash
 ```
 
 The updater refreshes distro-managed files only: `task`, `task.ts`, root docs,

@@ -31,7 +31,7 @@ It does not overwrite flow.md, assignments.yaml, live issues, backlog files, or
 done archives.
 
 Environment:
-  DOCKET_REPO   GitHub repo to update from (default: yagoalmeida/docket)
+  DOCKET_REPO   GitHub repo to update from (default: yfernandes/docket)
   DOCKET_REF    Git ref to update from (default: main)
   DOCKET_ARCHIVE_URL
                Archive URL override for tests or mirrors

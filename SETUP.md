@@ -22,13 +22,13 @@ stage and commit inside the task worktree, not on your application branch.
 From the repository root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/yfernandes/docket/refs/heads/main/scripts/setup.sh | bash
 ```
 
 For non-interactive environments:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/setup.sh | bash -s -- --yes
+curl -fsSL https://raw.githubusercontent.com/yfernandes/docket/refs/heads/main/scripts/setup.sh | bash -s -- --yes
 ```
 
 The script performs the manual steps below: it creates the orphan worktree,
@@ -54,13 +54,13 @@ with no shared history with your main branch.
 ### 2. Populate it
 
 ```bash
-degit yagoalmeida/fto tasks
+degit yfernandes/docket tasks
 ```
 
 Or with git if you prefer history:
 
 ```bash
-git clone https://github.com/yagoalmeida/fto tasks --depth 1
+git clone https://github.com/yfernandes/docket tasks --depth 1
 # then detach from the remote so the worktree owns it:
 git -C tasks remote remove origin
 ```
@@ -200,7 +200,7 @@ git -C tasks push origin tasks
 To update the task system from the source repo:
 
 ```bash
-degit yagoalmeida/fto tasks --force
+degit yfernandes/docket tasks --force
 git -C tasks add -A && git -C tasks commit -m "chore: update task system"
 ```
 
@@ -214,13 +214,13 @@ From the docket worktree (`tasks/`) or from the repository root when `./task`
 is a symlink to `tasks/task`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/update.sh | bash
+curl -fsSL https://raw.githubusercontent.com/yfernandes/docket/refs/heads/main/scripts/update.sh | bash
 ```
 
 Or non-interactively:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/update.sh | bash -s -- --yes
+curl -fsSL https://raw.githubusercontent.com/yfernandes/docket/refs/heads/main/scripts/update.sh | bash -s -- --yes
 ```
 
 The updater warns that local changes to affected distro-managed files may be
