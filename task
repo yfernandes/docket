@@ -4,9 +4,9 @@
 import { $ } from "bun";
 import {
   readFileSync, writeFileSync, existsSync, mkdirSync,
-  readdirSync, statSync, renameSync,
+  readdirSync, statSync, renameSync, rmSync,
 } from "fs";
-import { join, relative, dirname, basename } from "path";
+import { join, relative, dirname, basename, isAbsolute } from "path";
 import { createInterface } from "readline";
 
 const ROOT = import.meta.dir;
@@ -210,13 +210,87 @@ function relPath(absPath: string): string {
   return relative(ROOT, absPath);
 }
 
+function gitPath(filePath: string): string {
+  const rel = isAbsolute(filePath) ? relative(ROOT, filePath) : filePath;
+  if (rel === "" || rel.startsWith("..")) {
+    die(`Refusing to stage path outside task root: ${filePath}`);
+  }
+  return rel;
+}
+
+interface FileSnapshot {
+  path: string;
+  existed: boolean;
+  content: string | null;
+}
+
+function snapshotFiles(paths: string[]): FileSnapshot[] {
+  const seen = new Set<string>();
+  return paths.filter(path => {
+    if (seen.has(path)) return false;
+    seen.add(path);
+    return true;
+  }).map(path => ({
+    path,
+    existed: existsSync(path),
+    content: existsSync(path) ? readFileSync(path, "utf-8") : null,
+  }));
+}
+
+function restoreFiles(snapshots: FileSnapshot[]): void {
+  for (const snapshot of snapshots) {
+    if (snapshot.existed) {
+      writeFileSync(snapshot.path, snapshot.content ?? "");
+    } else if (existsSync(snapshot.path)) {
+      rmSync(snapshot.path, { force: true });
+    }
+  }
+}
+
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
 async function gitAdd(paths: string[]): Promise<void> {
   if (paths.length === 0) return;
-  await $`git add -f ${paths}`;
+  const relPaths = paths.map(gitPath);
+  await $`git -C ${ROOT} add -f -- ${relPaths}`;
+}
+
+async function gitAddUpdate(paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
+  const relPaths = paths.map(gitPath);
+  await $`git -C ${ROOT} add -u -- ${relPaths}`;
+}
+
+async function gitCommit(message: string): Promise<boolean> {
+  const staged = (await $`git -C ${ROOT} diff --cached --name-only`.text()).trim();
+  if (!staged) {
+    console.warn("No staged task changes; skipping commit.");
+    return false;
+  }
+  await $`git -C ${ROOT} commit -m ${message}`;
+  return true;
+}
+
+async function commitWithRollback(
+  message: string,
+  touchedPaths: string[],
+  mutate: () => Promise<void> | void,
+): Promise<boolean> {
+  const snapshots = snapshotFiles(touchedPaths);
+  try {
+    await mutate();
+    return await gitCommit(message);
+  } catch (error) {
+    restoreFiles(snapshots);
+    try {
+      const relPaths = touchedPaths.map(gitPath);
+      await $`git -C ${ROOT} restore --staged -- ${relPaths}`;
+    } catch { /* best-effort cleanup of failed staging */ }
+    console.error("Task state was restored after git staging/commit failed.");
+    throw error;
+  }
 }
 
 // ── flow.md helpers ───────────────────────────────────────────────────────────
@@ -469,24 +543,27 @@ async function cmdClaim(args: string[]) {
     released_at: null,
   };
 
-  assignments.push(record);
-  writeAssignments(assignments);
-
   const issuePath = findIssueFile(taskId);
   const changedFiles: string[] = [ASSIGNMENTS_PATH];
-
-  if (issuePath) {
-    const { data, body } = readIssue(issuePath);
-    data.status = "in-progress";
-    writeIssue(issuePath, data, body);
-    changedFiles.push(issuePath);
-  }
-
-  await cmdRender();
+  if (issuePath) changedFiles.push(issuePath);
   changedFiles.push(FLOW_PATH);
 
-  await gitAdd(changedFiles);
-  await $`git commit -m ${"claim(" + taskId + "): " + owner}`;
+  await commitWithRollback(`claim(${taskId}): ${owner}`, changedFiles, async () => {
+    assignments.push(record);
+    writeAssignments(assignments);
+
+    if (issuePath) {
+      const { data, body } = readIssue(issuePath);
+      data.status = "in-progress";
+      data.owner = owner;
+      data.owner_type = ownerType;
+      data.agent_id = agentId;
+      writeIssue(issuePath, data, body);
+    }
+
+    await cmdRender();
+    await gitAdd(changedFiles);
+  });
   console.log(`Claimed '${taskId}' by '${owner}'`);
 }
 
@@ -500,25 +577,28 @@ async function cmdRelease(args: string[]) {
   const idx = assignments.findIndex(a => a.task_id === taskId && a.status === "active");
   if (idx === -1) die(`No active assignment for '${taskId}'`);
 
-  assignments[idx].status = "released";
-  assignments[idx].released_at = new Date().toISOString();
-  writeAssignments(assignments);
-
   const issuePath = findIssueFile(taskId);
   const changedFiles: string[] = [ASSIGNMENTS_PATH];
-
-  if (issuePath) {
-    const { data, body } = readIssue(issuePath);
-    data.status = "open";
-    writeIssue(issuePath, data, body);
-    changedFiles.push(issuePath);
-  }
-
-  await cmdRender();
+  if (issuePath) changedFiles.push(issuePath);
   changedFiles.push(FLOW_PATH);
 
-  await gitAdd(changedFiles);
-  await $`git commit -m ${"release(" + taskId + ")"}`;
+  await commitWithRollback(`release(${taskId})`, changedFiles, async () => {
+    assignments[idx].status = "released";
+    assignments[idx].released_at = new Date().toISOString();
+    writeAssignments(assignments);
+
+    if (issuePath) {
+      const { data, body } = readIssue(issuePath);
+      data.status = "open";
+      data.owner = "human";
+      data.owner_type = "human";
+      data.agent_id = null;
+      writeIssue(issuePath, data, body);
+    }
+
+    await cmdRender();
+    await gitAdd(changedFiles);
+  });
   console.log(`Released '${taskId}'`);
 }
 
@@ -540,25 +620,27 @@ async function cmdClose(args: string[]) {
   if (!existsSync(doneDir)) mkdirSync(doneDir, { recursive: true });
 
   const newPath = join(doneDir, `${today()}-${taskId}.md`);
-  writeIssue(issuePath, data, body);
-  renameSync(issuePath, newPath);
-
-  // Release any active assignment
   const assignments = readAssignments();
   const idx = assignments.findIndex(a => a.task_id === taskId && a.status === "active");
-  if (idx !== -1) {
-    assignments[idx].status = "released";
-    assignments[idx].released_at = new Date().toISOString();
-    writeAssignments(assignments);
-  }
 
-  await cmdRender();
+  await commitWithRollback(`close(${taskId})`, [issuePath, newPath, FLOW_PATH, ASSIGNMENTS_PATH], async () => {
+    writeIssue(issuePath, data, body);
+    renameSync(issuePath, newPath);
 
-  // Stage new location, remove old from index
-  await gitAdd([newPath, FLOW_PATH]);
-  if (idx !== -1) await gitAdd([ASSIGNMENTS_PATH]);
-  await $`git add -u ${dirname(issuePath)}`;
-  await $`git commit -m ${"close(" + taskId + ")"}`;
+    // Release any active assignment
+    if (idx !== -1) {
+      assignments[idx].status = "released";
+      assignments[idx].released_at = new Date().toISOString();
+      writeAssignments(assignments);
+    }
+
+    await cmdRender();
+
+    // Stage the moved issue and any generated task files in the task worktree.
+    await gitAdd([newPath, FLOW_PATH]);
+    await gitAddUpdate([issuePath]);
+    if (idx !== -1) await gitAdd([ASSIGNMENTS_PATH]);
+  });
   console.log(`Closed '${taskId}' → ${relPath(newPath)}`);
 }
 
@@ -867,7 +949,7 @@ Rules:
 
   const toAdd = [...newFiles, FLOW_PATH];
   await gitAdd(toAdd);
-  await $`git commit -m ${"ingest: " + newFiles.length + " issue(s) created from scratchpad"}`;
+  await gitCommit(`ingest: ${newFiles.length} issue(s) created from scratchpad`);
   console.log(`\nIngested ${newFiles.length} issue(s).`);
 }
 
