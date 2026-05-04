@@ -27,7 +27,8 @@ ln -s tasks/task task
 # Create an issue
 ./task new backend "Add rate limiting to cart endpoint"
 
-# Claim it and start working
+# Triage it, then claim it and start working
+./task triage add-rate-limiting-to-cart-endpoint ready-for-agent
 ./task claim add-rate-limiting-to-cart-endpoint --owner you
 
 # Close it when done
@@ -47,6 +48,7 @@ ln -s tasks/task task
 | `list`                | Browse issues — filterable by scope/status, `--json` mode |
 | `new <scope> <title>` | Create an issue from the template                         |
 | `claim <id>`          | Take ownership, mark in-progress, auto-commit             |
+| `triage <id>`         | Update the issue triage status                            |
 | `release <id>`        | Hand a task back to open                                  |
 | `close <id>`          | Mark done, archive issue file, commit                     |
 | `ingest`              | Turn scratchpad bullets into issue files via AI           |
@@ -62,9 +64,10 @@ Full usage: `./task help`
 
 1. Drop rough notes into `flow.md → ## Issue Scratchpad`
 2. Run `./task ingest` to formalize them into issue files
-3. Run `./task list --status open` to find work
-4. `./task claim <id>` to take ownership
-5. `./task close <id>` when done — or `./task release <id>` to hand back
+3. Run `./task list --status needs-triage` to find fresh issues
+4. `./task triage <id> ready-for-agent` when the issue is ready for pickup
+5. `./task claim <id>` to take ownership
+6. `./task close <id>` when done — or `./task release <id>` to hand back
 
 ---
 

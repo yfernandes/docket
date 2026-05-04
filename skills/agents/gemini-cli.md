@@ -24,7 +24,7 @@ If docket is installed at the repository root instead of `tasks/`, reference:
 1. Inspect available tasks:
 
    ```bash
-   ./task list --status open
+   ./task list --status needs-triage
    ./task list --json
    ```
 

@@ -22,7 +22,7 @@ If docket is installed at the repository root instead of `tasks/`, use
 1. Inspect the queue with fast shell commands:
 
    ```bash
-   ./task list --status open
+   ./task list --status needs-triage
    ./task list --json
    ```
 

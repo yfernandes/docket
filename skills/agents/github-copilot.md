@@ -22,7 +22,7 @@ If Copilot cannot read the `tasks/` worktree, copy this file's contents into
 1. Inspect tasks:
 
    ```bash
-   ./task list --status open
+   ./task list --status needs-triage
    ```
 
 2. Claim before editing:

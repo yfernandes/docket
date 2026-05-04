@@ -24,11 +24,22 @@ Current scopes: `backend`, `frontend`, `libs`, `cms`.
 1. Inspect available work.
 
    ```bash
-   ./task list --status open
+   ./task list --status needs-triage
    ./task list --json
    ```
 
-2. Claim exactly one task before editing.
+2. Triage the issue if needed before claiming.
+
+   ```bash
+   ./task triage <task-id> ready-for-agent
+   ./task triage <task-id> ready-for-human
+   ./task triage <task-id> needs-info
+   ```
+
+   Triage updates the issue frontmatter only. It does not create or modify an
+   assignment record.
+
+3. Claim exactly one task before editing.
 
    ```bash
    ./task claim <task-id> --owner <agent-id> --agent <agent-id> --lease 120
@@ -37,10 +48,10 @@ Current scopes: `backend`, `frontend`, `libs`, `cms`.
    Agent claims require `--lease <minutes>`. Use a realistic lease for the work
    window. If a claim is rejected, another owner has it.
 
-3. Do the work in the main repository. Keep the issue id in mind for status
+4. Do the work in the main repository. Keep the issue id in mind for status
    updates and final notes.
 
-4. Release or close the task.
+5. Release or close the task.
 
    ```bash
    ./task release <task-id>

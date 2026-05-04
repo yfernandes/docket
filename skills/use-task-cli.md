@@ -47,14 +47,24 @@ Current scopes: `backend`, `frontend`, `libs`, `cms`
 ### 1. Find available work
 
 ```bash
-./task list --status open
-./task list --scope backend --status open
+./task list --status needs-triage
+./task list --scope backend --status needs-triage
 ./task list --json   # machine-readable
 ```
 
 Pick a task. Note its `id` field (the slug, e.g. `stripe-webhook-route`).
 
-### 2. Claim the task
+### 2. Triage the task
+
+```bash
+./task triage stripe-webhook-route ready-for-agent
+```
+
+Use `ready-for-agent` for fully specified work that an AFK agent can claim,
+`ready-for-human` when a human should implement it, and `needs-info` when more
+details are required.
+
+### 3. Claim the task
 
 ```bash
 ./task claim stripe-webhook-route \
@@ -74,11 +84,11 @@ For human owners (no lease needed):
 ./task claim stripe-webhook-route --owner yago
 ```
 
-### 3. Do the work
+### 4. Do the work
 
 Work normally. The claim is yours for the lease duration.
 
-### 4. Release or close
+### 5. Release or close
 
 **Release** — hand the task back to open (you didn't finish it, or you're done
 with your portion and a human should review):
@@ -104,7 +114,7 @@ When you identify work that isn't tracked yet:
 # prints: issues/backend/add-rate-limiting-to-cart-endpoint.md
 ```
 
-The file is created from the template with `status: open`. Fill in the body
+The file is created from the template with `status: needs-triage`. Fill in the body
 sections (Context, Objective, Acceptance Criteria) before claiming.
 
 You can also drop a bullet in `flow.md > ## Issue Scratchpad` and let
@@ -190,7 +200,7 @@ untouched.
 
 | Goal               | Command                                          |
 | ------------------ | ------------------------------------------------ |
-| List open issues   | `./task list --status open`                      |
+| List triage issues | `./task list --status needs-triage`              |
 | List by scope      | `./task list --scope backend`                    |
 | Create issue       | `./task new <scope> <title>`                     |
 | Claim task         | `./task claim <id> --agent <name> --lease <min>` |

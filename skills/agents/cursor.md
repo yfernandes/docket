@@ -25,7 +25,7 @@ If docket is installed at the repository root instead of `tasks/`, use
 1. Inspect available work:
 
    ```bash
-   ./task list --status open
+   ./task list --status needs-triage
    ```
 
 2. Claim one task before edits:
