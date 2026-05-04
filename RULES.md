@@ -10,6 +10,10 @@ Never hand-edit `assignments.yaml`, `flow.md` Active/Agent Queue sections,
 or issue frontmatter. The CLI handles consistency, git commits, and rendering
 atomically. Direct edits break invariants silently.
 
+This also applies when docket is installed as an orphan `tasks` worktree with a
+repo-root `./task` symlink. Invoke `./task` normally; the CLI commits task state
+inside the docket worktree instead of the main application branch.
+
 ## Canonical sources of truth
 
 | What                 | Where                                           |
@@ -17,6 +21,7 @@ atomically. Direct edits break invariants silently.
 | Task ownership       | `assignments.yaml`                              |
 | Daily planning state | `flow.md` (Planned/Completed/Deferred sections) |
 | Issue detail         | `issues/<scope>/<slug>.md`                      |
+| Issue templates      | `issues/templates/*.md`                         |
 
 `flow.md` Active and Agent Queue sections are **rendered views** — they are
 rewritten by `./task render` and `./task claim/release/close`. Do not treat
@@ -56,6 +61,14 @@ for the lifetime of the task.
 2. Agent assignments must have `lease_until` set.
 3. A task shown as `[-]` in flow Active must have a backing active assignment.
 4. Done/deferred tasks must not have stale active assignments.
+
+## Template invariants
+
+1. `issues/templates/issue.md` is the default for `./task new` and
+   `./task ingest`.
+2. Additional templates live at `issues/templates/<name>.md`.
+3. Use `--template <name>` to select a non-default template.
+4. Unknown templates must fail before writing task files.
 
 ## Active skills
 

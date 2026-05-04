@@ -4,6 +4,9 @@ This installs the task system as an orphan `tasks` branch living in a git
 worktree at `./tasks/`. The main branch never tracks its contents — only a
 single symlink at the repo root.
 
+The `./task` symlink is safe to use from the main repository: mutating commands
+stage and commit inside the task worktree, not on your application branch.
+
 ## Prerequisites
 
 - `bun` in PATH
@@ -13,6 +16,29 @@ single symlink at the repo root.
 ---
 
 ## Steps
+
+### Fast path
+
+From the repository root:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/setup.sh | bash
+```
+
+For non-interactive environments:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/setup.sh | bash -s -- --yes
+```
+
+The script performs the manual steps below: it creates the orphan worktree,
+copies the distro-managed docket files, creates the root `./task` symlink,
+adds `tasks/` to `.gitignore`, and commits the initial task system on the
+`tasks` branch.
+
+---
+
+## Manual setup
 
 ### 1. Create the orphan worktree
 
@@ -64,6 +90,9 @@ chmod +x tasks/task   # should already be set, but just in case
 
 `./task` at the repo root now resolves into the worktree. Agents that cannot
 read gitignored directories can still find and run the CLI from the root.
+All docket paths and git operations are resolved from the task worktree itself,
+so commands like `./task claim`, `./task close`, and `./task ingest` commit to
+the orphan `tasks` branch even when launched from the main repo.
 
 ### 6. Install agent skills
 
@@ -175,6 +204,43 @@ degit yagoalmeida/fto tasks --force
 git -C tasks add -A && git -C tasks commit -m "chore: update task system"
 ```
 
+If a mutating `./task` command fails during git staging or commit, docket
+restores the task files it touched and leaves the error visible. Re-run
+`./task doctor` and `./task lint` after resolving the git issue.
+
+### Updating docket
+
+From the docket worktree (`tasks/`) or from the repository root when `./task`
+is a symlink to `tasks/task`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/update.sh | bash
+```
+
+Or non-interactively:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/update.sh | bash -s -- --yes
+```
+
+The updater warns that local changes to affected distro-managed files may be
+overwritten. It updates:
+
+- `task`
+- `task.ts`
+- `README.md`
+- `RULES.md`
+- `SETUP.md`
+- `STRUCTURE.md`
+- `skills/`
+- `scripts/`
+- `issues/templates/`
+
+It does not overwrite `flow.md`, `assignments.yaml`, live issues, backlog
+files, or done archives. User-added files under `skills/` and
+`issues/templates/` are left in place; only matching upstream files are staged
+for the update commit.
+
 ---
 
 ## File map after setup
@@ -187,8 +253,12 @@ git -C tasks add -A && git -C tasks commit -m "chore: update task system"
 ├── .gemini/ / .github/         ← references matching tasks/skills/agents file
 └── tasks/                      ← gitignored worktree (tasks branch)
     ├── task
+    ├── task.ts
     ├── flow.md
     ├── assignments.yaml
+    ├── scripts/
+    │   ├── setup.sh
+    │   └── update.sh
     ├── skills/
     │   ├── README.md
     │   ├── core/
@@ -200,6 +270,9 @@ git -C tasks add -A && git -C tasks commit -m "chore: update task system"
     │   │   └── ...
     │   └── use-task-cli.md
     └── issues/
+        ├── templates/
+        │   ├── issue.md
+        │   └── prd.md
         ├── backend/
         ├── frontend/
         ├── libs/

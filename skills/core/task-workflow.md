@@ -13,7 +13,9 @@ is the only sanctioned way to mutate `assignments.yaml`, rendered sections of
 ├── assignments.yaml
 ├── issues/
 │   ├── <scope>/<slug>.md
-│   └── templates/issue.md
+│   └── templates/
+│       ├── issue.md
+│       └── prd.md
 └── skills/
 ```
 
@@ -65,14 +67,20 @@ Current scopes: `backend`, `frontend`, `libs`, `cms`.
 
 ```bash
 ./task new <scope> "<title>"
+./task new <scope> "<title>" --template prd
 ```
 
-Fill in the generated issue body before claiming it. You may also add raw notes
-to `flow.md` under `## Issue Scratchpad` and run:
+Templates live in `issues/templates/<name>.md`; the default is `issue.md`.
+Use `--template prd` for PRD-shaped issues. Fill in the generated issue body
+before claiming it. You may also add raw notes to `flow.md` under
+`## Issue Scratchpad` and run:
 
 ```bash
 ./task ingest
+./task ingest --template prd
 ```
+
+Unknown templates fail with `Template not found: issues/templates/<name>.md`.
 
 ## Health checks
 
@@ -86,6 +94,20 @@ to `flow.md` under `## Issue Scratchpad` and run:
 - `lint` validates issue frontmatter, flow layout, and assignment invariants.
 - `render` rebuilds the managed Active and Agent Queue sections from
   `assignments.yaml`.
+
+## Git worktree notes
+
+Docket is often installed as a separate orphan `tasks` branch mounted at
+`./tasks/`, with `./task` in the main repo symlinked to `tasks/task`. Always use
+`./task`; it resolves files and git commits relative to the task root, so task
+state is committed in the docket worktree instead of the main application
+branch.
+
+Use `scripts/update.sh` to refresh distro-managed files. It updates the CLI,
+root docs, skills, scripts, and issue templates, but leaves `flow.md`,
+`assignments.yaml`, and live issue files untouched. Run it from the docket
+worktree or from a main repo root whose `./task` symlink points at that
+worktree.
 
 ## Hard rules
 

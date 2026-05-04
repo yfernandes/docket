@@ -35,7 +35,8 @@ The `./task` script is the only sanctioned way to mutate `assignments.yaml`,
     │   └── done/
     │       └── YYYY-MM-DD-<slug>.md
     └── templates/
-        └── issue.md
+        ├── issue.md          ← default implementation/slice template
+        └── prd.md            ← PRD template
 ```
 
 Current scopes: `backend`, `frontend`, `libs`, `cms`
@@ -111,11 +112,14 @@ When you identify work that isn't tracked yet:
 
 ```bash
 ./task new backend "Add rate limiting to cart endpoint"
+./task new product "Checkout v2 PRD" --template prd
 # prints: issues/backend/add-rate-limiting-to-cart-endpoint.md
 ```
 
-The file is created from the template with `status: needs-triage`. Fill in the body
-sections (Context, Objective, Acceptance Criteria) before claiming.
+The file is created from `issues/templates/issue.md` by default with
+`status: needs-triage`. Pass `--template <name>` to use
+`issues/templates/<name>.md`; for example, `--template prd` creates a PRD-shaped
+issue. Fill in the generated body before claiming.
 
 You can also drop a bullet in `flow.md > ## Issue Scratchpad` and let
 `task ingest` formalize it:
@@ -131,10 +135,17 @@ Then run:
 ```bash
 ./task ingest            # auto-detects gemini/claude/copilot/codex in PATH
 ./task ingest --backend gemini   # force a specific backend
+./task ingest --template prd     # route bullets into the PRD template
 ```
 
 The scratchpad is cleared and a draft issue file is written for each bullet
 classified as an actionable issue.
+
+Unknown template names fail clearly before files are written:
+
+```bash
+Template not found: issues/templates/<name>.md
+```
 
 ---
 
@@ -174,6 +185,34 @@ untouched.
 
 ---
 
+## Orphan worktree installs
+
+Most projects install docket as `./tasks/`, an orphan git worktree on a separate
+`tasks` branch, and expose a repo-root symlink:
+
+```text
+./task -> tasks/task
+```
+
+Use the symlink normally. The CLI resolves its own root and runs git operations
+inside the task worktree, so task-state commits do not land on the main
+application branch. If staging or committing fails during a mutating command,
+docket restores the touched task files before returning the error.
+
+To update docket:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/update.sh | bash
+```
+
+Run it from the docket worktree or from a main repo root whose `./task` symlink
+points at that worktree. The updater may overwrite local changes to
+distro-managed files (`task`, root docs, `skills/`, `scripts/`, and
+`issues/templates/`) but leaves `flow.md`, `assignments.yaml`, and live issue
+files alone.
+
+---
+
 ## Key invariants to respect
 
 1. **Never claim a task that already has an active record.** `task claim` will
@@ -203,6 +242,7 @@ untouched.
 | List triage issues | `./task list --status needs-triage`              |
 | List by scope      | `./task list --scope backend`                    |
 | Create issue       | `./task new <scope> <title>`                     |
+| Create PRD issue   | `./task new <scope> <title> --template prd`      |
 | Claim task         | `./task claim <id> --agent <name> --lease <min>` |
 | Release task       | `./task release <id>`                            |
 | Close task         | `./task close <id>`                              |

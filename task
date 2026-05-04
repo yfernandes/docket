@@ -444,6 +444,44 @@ function parseFlags(args: string[]): Record<string, string> {
 	return flags;
 }
 
+function parseTemplateArg(args: string[]): {
+	templateName: string;
+	positional: string[];
+} {
+	const positional: string[] = [];
+	let templateName = "issue";
+
+	for (let i = 0; i < args.length; i++) {
+		if (args[i] !== "--template") {
+			positional.push(args[i]);
+			continue;
+		}
+
+		if (i + 1 >= args.length || args[i + 1].startsWith("--")) {
+			die("Usage: --template <name>");
+		}
+
+		templateName = args[i + 1];
+		i++;
+	}
+
+	return { templateName, positional };
+}
+
+function resolveIssueTemplate(templateName: string): string {
+	const templatePath = join(
+		ROOT,
+		"issues",
+		"templates",
+		`${templateName}.md`,
+	);
+	if (!existsSync(templatePath)) {
+		die(`Template not found: ${relPath(templatePath)}`);
+	}
+
+	return readFileSync(templatePath, "utf-8");
+}
+
 async function prompt(question: string): Promise<string> {
 	return new Promise((resolve) => {
 		const rl = createInterface({
@@ -602,9 +640,11 @@ async function cmdLint() {
 // ── task new ──────────────────────────────────────────────────────────────────
 
 async function cmdNew(args: string[]) {
-	const scope = args[0];
-	const titleParts = args.slice(1);
-	if (!scope || titleParts.length === 0) die("Usage: task new <scope> <title>");
+	const { templateName, positional } = parseTemplateArg(args);
+	const scope = positional[0];
+	const titleParts = positional.slice(1);
+	if (!scope || titleParts.length === 0)
+		die("Usage: task new <scope> <title> [--template <name>]");
 
 	const title = titleParts.join(" ");
 	const slug = slugFromTitle(title);
@@ -614,10 +654,7 @@ async function cmdNew(args: string[]) {
 	const filePath = join(scopeDir, `${slug}.md`);
 	if (existsSync(filePath)) die(`Already exists: ${relPath(filePath)}`);
 
-	const templatePath = join(ROOT, "issues", "templates", "issue.md");
-	const templateContent = existsSync(templatePath)
-		? readFileSync(templatePath, "utf-8")
-		: "";
+	const templateContent = resolveIssueTemplate(templateName);
 	const { body: templateBody } = parseFrontmatter(templateContent);
 
 	const fm: Record<string, unknown> = {
@@ -1126,8 +1163,10 @@ async function callAI(
 // ── task ingest ───────────────────────────────────────────────────────────────
 
 async function cmdIngest(args: string[]) {
+	const { templateName } = parseTemplateArg(args);
 	const flags = parseFlags(args);
 	const apiKey = process.env.ANTHROPIC_API_KEY;
+	const template = resolveIssueTemplate(templateName);
 
 	// Resolve backend: explicit flag > auto-detect
 	let backend = flags["backend"] ?? "";
@@ -1158,11 +1197,6 @@ async function cmdIngest(args: string[]) {
 				(e) => statSync(join(issuesDir, e)).isDirectory() && e !== "templates",
 			)
 		: [];
-
-	const templatePath = join(ROOT, "issues", "templates", "issue.md");
-	const template = existsSync(templatePath)
-		? readFileSync(templatePath, "utf-8")
-		: "";
 
 	const SYSTEM_PROMPT = `You are a task management assistant. Classify each input bullet point from an issue scratchpad.
 
@@ -1246,6 +1280,7 @@ const HELP = `task — file-based task orchestration
 Commands:
   lint                      Validate task system invariants
   new <scope> <title>       Create a new issue from template
+    --template <name>       Use issues/templates/<name>.md (default: issue)
   claim <task-id>           Claim a task
     --owner <name>          Owner name
     --agent <agent-id>      Marks as agent (requires --lease)
@@ -1268,6 +1303,7 @@ Commands:
   ingest                    Process Issue Scratchpad via AI
     --backend <name>        Force backend: gemini, claude, copilot, codex, api
                             (default: auto-detect from PATH, fallback to api)
+    --template <name>       Use issues/templates/<name>.md (default: issue)
 `;
 
 const [, , cmd, ...rest] = process.argv;

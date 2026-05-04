@@ -14,6 +14,7 @@ Most issue trackers are built around the browser. docket is built around the ter
 - **Agent-native** — lease-based claiming prevents agents from stomping each other
 - **Zero infrastructure** — runs anywhere `bun` runs, no server required
 - **AI-assisted ingestion** — dump rough notes into a scratchpad, let `./task ingest` turn them into structured issues
+- **Worktree-friendly** — keep docket on an orphan `tasks` branch while running `./task` from your repo root
 
 ---
 
@@ -21,11 +22,13 @@ Most issue trackers are built around the browser. docket is built around the ter
 
 ```bash
 # Install (see SETUP.md for full instructions)
-degit yagoalmeida/docket tasks
-ln -s tasks/task task
+curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/setup.sh | bash
 
 # Create an issue
 ./task new backend "Add rate limiting to cart endpoint"
+
+# Or create a PRD-shaped issue
+./task new product "Checkout v2 PRD" --template prd
 
 # Triage it, then claim it and start working
 ./task triage add-rate-limiting-to-cart-endpoint ready-for-agent
@@ -46,7 +49,7 @@ ln -s tasks/task task
 | Command               | What it does                                              |
 | --------------------- | --------------------------------------------------------- |
 | `list`                | Browse issues — filterable by scope/status, `--json` mode |
-| `new <scope> <title>` | Create an issue from the template                         |
+| `new <scope> <title>` | Create an issue from a template                           |
 | `claim <id>`          | Take ownership, mark in-progress, auto-commit             |
 | `triage <id>`         | Update the issue triage status                            |
 | `release <id>`        | Hand a task back to open                                  |
@@ -69,6 +72,10 @@ Full usage: `./task help`
 5. `./task claim <id>` to take ownership
 6. `./task close <id>` when done — or `./task release <id>` to hand back
 
+Use `--template <name>` with `new` or `ingest` when the issue body should use
+`issues/templates/<name>.md` instead of the default `issue.md`. For example,
+`./task ingest --template prd` routes scratchpad bullets into the PRD shape.
+
 ---
 
 ## Key files
@@ -78,12 +85,45 @@ Full usage: `./task help`
 | `flow.md`                   | Daily tracker — your living view of the day |
 | `assignments.yaml`          | Source of truth for task ownership          |
 | `issues/<scope>/<slug>.md`  | Structured issue files                      |
-| `issues/templates/issue.md` | Template used by `new` and `ingest`         |
+| `issues/templates/*.md`     | Templates used by `new` and `ingest`        |
 | `skills/README.md`          | Agent skill index and install map           |
 | `skills/agents/*.md`        | Preconfigured skills for common AI agents   |
 | `skills/use-task-cli.md`    | Generic fallback skill for unlisted agents  |
 
 Built-in scopes: `backend`, `frontend`, `libs`, `cms` — add more by creating folders under `issues/`.
+
+Built-in templates:
+
+| Template | Use case                                  |
+| -------- | ----------------------------------------- |
+| `issue`  | Default implementation/slice issue shape  |
+| `prd`    | PRD issue shape for product requirements  |
+
+---
+
+## Orphan Worktree Mode
+
+The recommended install keeps docket files in `./tasks/`, an orphan git
+worktree on a separate `tasks` branch, with a repo-root symlink at `./task`.
+When invoked through that symlink, the CLI still stages and commits inside the
+task worktree. This keeps task-state commits out of the main application branch
+while letting humans and agents use the short `./task ...` command everywhere.
+
+`task claim`, `release`, `close`, `ingest`, and other mutating commands commit
+only docket-managed paths from the task worktree. If git staging or commit
+fails, the CLI restores the touched task files before surfacing the error.
+
+To update an existing install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yagoalmeida/docket/main/scripts/update.sh | bash
+```
+
+Run the updater from the docket worktree itself (`tasks/`) or from the main repo
+root if `./task` points at that worktree. It warns before overwriting
+distro-managed files. It updates `task`, root docs, `skills/`, `scripts/`, and
+`issues/templates/`, but it does not overwrite `flow.md`, `assignments.yaml`,
+live issues, backlog files, or archives.
 
 ---
 
