@@ -1,11 +1,11 @@
 ---
 id: aa-02-add-a-durable-task-log
 title: AA-02 Add a durable task log
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex
+owner_type: agent
+agent_id: codex
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
