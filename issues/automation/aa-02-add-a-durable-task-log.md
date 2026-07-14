@@ -1,7 +1,7 @@
 ---
 id: aa-02-add-a-durable-task-log
 title: AA-02 Add a durable task log
-status: needs-triage
+status: ready-for-agent
 priority: P2
 owner: human
 owner_type: human
