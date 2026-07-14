@@ -1,14 +1,14 @@
 ---
 id: aa-02b-add-configurable-completion-gates
 title: AA-02B Add configurable completion gates
-status: in-progress
+status: done
 priority: P2
 owner: codex
 owner_type: agent
 agent_id: codex
 tags: [automation]
 created_at: 2026-07-14
-closed_at: null
+closed_at: 2026-07-14
 ---
 
 ## Type
@@ -167,5 +167,8 @@ lands and the project enables its `agents` policies.
 
 - 2026-07-14T03:46:04.296Z — codex claimed task
 <!-- docket:event id=claim-2026-07-14T03:46:04.296Z -->
+
+- 2026-07-14 — task closed by codex
+<!-- docket:event id=close-2026-07-14 -->
 
 <!-- docket:task-log:end -->
