@@ -22,16 +22,16 @@ Deliver a narrow end-to-end behavior by appending lifecycle history from existin
 
 ## Acceptance Criteria
 
-- [ ] Tasks with and without Task Logs parse successfully.
-- [ ] Claim, release, and close append meaningful lifecycle entries exactly once.
-- [ ] Unknown headings, prose, and metadata survive mutations unchanged.
-- [ ] The managed section remains at the end of the issue body.
-- [ ] Duplicate event IDs and commit hashes are rejected or deduplicated.
-- [ ] Malformed managed markers are reported by `task lint`.
-- [ ] Archiving preserves the full log.
-- [ ] Ledger, issue, flow, and history writes share one rollback boundary.
-- [ ] Human command behavior remains compatible.
-- [ ] Source, bundled artifact, and regression tests pass.
+- [x] Tasks with and without Task Logs parse successfully.
+- [x] Claim, release, and close append meaningful lifecycle entries exactly once.
+- [x] Unknown headings, prose, and metadata survive mutations unchanged.
+- [x] The managed section remains at the end of the issue body.
+- [x] Duplicate event IDs and commit hashes are rejected or deduplicated.
+- [x] Malformed managed markers are reported by `task lint`.
+- [x] Archiving preserves the full log.
+- [x] Ledger, issue, flow, and history writes share one rollback boundary.
+- [x] Human command behavior remains compatible.
+- [x] Source, bundled artifact, and regression tests pass.
 
 ## Blocked by
 

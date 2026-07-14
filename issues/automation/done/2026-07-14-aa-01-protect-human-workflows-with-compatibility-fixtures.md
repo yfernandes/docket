@@ -22,14 +22,14 @@ The fixtures must represent existing installations rather than only files produc
 
 ## Acceptance Criteria
 
-- [ ] Legacy tasks without a Task Log remain readable and are not rewritten by read-only commands.
-- [ ] Legacy human assignments can be claimed, released, and closed through the existing command syntax.
-- [ ] Default human-readable output has focused compatibility assertions.
-- [ ] Both `bun src/cli.ts` and the generated `task` artifact are exercised.
-- [ ] A forced staging or commit failure restores all touched fixture files byte-for-byte.
-- [ ] Archive behavior and task-path resolution are covered.
-- [ ] The compatibility guarantees in the roadmap are documented as a test matrix.
-- [ ] `bun run build`, `bun test`, `bun run check`, and `git diff --check` pass.
+- [x] Legacy tasks without a Task Log remain readable and are not rewritten by read-only commands.
+- [x] Legacy human assignments can be claimed, released, and closed through the existing command syntax.
+- [x] Default human-readable output has focused compatibility assertions.
+- [x] Both `bun src/cli.ts` and the generated `task` artifact are exercised.
+- [x] A forced staging or commit failure restores all touched fixture files byte-for-byte.
+- [x] Archive behavior and task-path resolution are covered.
+- [x] The compatibility guarantees in the roadmap are documented as a test matrix.
+- [x] `bun run build`, `bun test`, `bun run check`, and `git diff --check` pass.
 
 ## Blocked by
 

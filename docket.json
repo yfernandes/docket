@@ -1,0 +1,10 @@
+{
+	"version": 1,
+	"completion": {
+		"acceptanceCriteria": "all",
+		"relatedCommits": "all",
+		"cleanWorktree": "off",
+		"requireActiveAssignment": "all",
+		"allowOverride": false
+	}
+}

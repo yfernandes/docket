@@ -3,17 +3,121 @@
 
 // src/commands.ts
 import {
-  existsSync as existsSync2,
+  existsSync as existsSync3,
   mkdirSync,
   readdirSync as readdirSync2,
-  readFileSync as readFileSync2,
+  readFileSync as readFileSync3,
   renameSync,
   statSync as statSync2,
   writeFileSync as writeFileSync2
 } from "fs";
-import { basename as basename3, join as join2 } from "path";
+import { basename as basename3, join as join3 } from "path";
 import { createInterface } from "readline";
 var {$: $2 } = globalThis.Bun;
+
+// src/config.ts
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
+
+// src/runtime.ts
+import { basename, dirname } from "path";
+var ROOT = basename(import.meta.dir) === "src" ? dirname(import.meta.dir) : import.meta.dir;
+
+// src/config.ts
+var DEFAULT_CONFIG = {
+  version: 1,
+  installation: { directory: "tasks", branch: "tasks" },
+  completion: {
+    acceptanceCriteria: "off",
+    relatedCommits: "off",
+    cleanWorktree: "off",
+    requireActiveAssignment: "off",
+    allowOverride: true
+  }
+};
+function configPath() {
+  return process.env.DOCKET_CONFIG || join(ROOT, "docket.json");
+}
+function object(value, name) {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error(`${name} must be an object`);
+  return value;
+}
+function policy(value, name) {
+  if (value !== "off" && value !== "agents" && value !== "all")
+    throw new Error(`${name} must be one of: off, agents, all`);
+  return value;
+}
+function readFileConfig(path = configPath()) {
+  if (!existsSync(path))
+    return {};
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(path, "utf-8"));
+  } catch (error) {
+    throw new Error(`Invalid docket.json at ${path}: ${error instanceof Error ? error.message : error}`);
+  }
+  const root = object(parsed, "docket.json");
+  for (const key of Object.keys(root)) {
+    if (!new Set(["version", "installation", "completion"]).has(key))
+      throw new Error(`docket.json contains unknown key '${key}'`);
+  }
+  if (root.version !== 1)
+    throw new Error("docket.json version must be 1");
+  const result = { version: 1 };
+  if (root.installation !== undefined) {
+    const installation = object(root.installation, "installation");
+    for (const key of Object.keys(installation)) {
+      if (key !== "directory" && key !== "branch")
+        throw new Error(`installation contains unknown key '${key}'`);
+    }
+    if (installation.directory !== undefined && typeof installation.directory !== "string")
+      throw new Error("installation.directory must be a string");
+    if (installation.branch !== undefined && typeof installation.branch !== "string")
+      throw new Error("installation.branch must be a string");
+    result.installation = installation;
+  }
+  if (root.completion !== undefined) {
+    const completion = object(root.completion, "completion");
+    for (const key of Object.keys(completion)) {
+      if (!new Set([
+        "acceptanceCriteria",
+        "relatedCommits",
+        "cleanWorktree",
+        "requireActiveAssignment",
+        "allowOverride"
+      ]).has(key))
+        throw new Error(`completion contains unknown key '${key}'`);
+    }
+    const policies = [
+      "acceptanceCriteria",
+      "relatedCommits",
+      "cleanWorktree",
+      "requireActiveAssignment"
+    ];
+    for (const key of policies)
+      if (completion[key] !== undefined)
+        policy(completion[key], `completion.${key}`);
+    if (completion.allowOverride !== undefined && typeof completion.allowOverride !== "boolean")
+      throw new Error("completion.allowOverride must be a boolean");
+    result.completion = completion;
+  }
+  return result;
+}
+function effectiveConfig(overrides = {}) {
+  const file = readFileConfig();
+  return {
+    version: 1,
+    installation: {
+      directory: overrides.directory ?? process.env.DOCKET_DIR ?? file.installation?.directory ?? DEFAULT_CONFIG.installation.directory,
+      branch: overrides.branch ?? process.env.DOCKET_BRANCH ?? file.installation?.branch ?? DEFAULT_CONFIG.installation.branch
+    },
+    completion: { ...DEFAULT_CONFIG.completion, ...file.completion }
+  };
+}
+function policyApplies(policy2, assignment) {
+  return policy2 === "all" || policy2 === "agents" && assignment?.owner_type === "agent";
+}
 
 // src/frontmatter.ts
 function parseFrontmatter(content) {
@@ -78,26 +182,20 @@ function serializeFrontmatter(data) {
 
 // src/repository.ts
 import {
-  existsSync,
+  existsSync as existsSync2,
   readdirSync,
-  readFileSync,
+  readFileSync as readFileSync2,
   rmSync,
   statSync,
   writeFileSync
 } from "fs";
-import { basename as basename2, isAbsolute, join, relative } from "path";
+import { basename as basename2, isAbsolute, join as join2, relative } from "path";
 var {$ } = globalThis.Bun;
-
-// src/runtime.ts
-import { basename, dirname } from "path";
-var ROOT = basename(import.meta.dir) === "src" ? dirname(import.meta.dir) : import.meta.dir;
-
-// src/repository.ts
-var ASSIGNMENTS_PATH = join(ROOT, "assignments.yaml");
+var ASSIGNMENTS_PATH = join2(ROOT, "assignments.yaml");
 function readAssignments() {
-  if (!existsSync(ASSIGNMENTS_PATH))
+  if (!existsSync2(ASSIGNMENTS_PATH))
     return [];
-  return parseAssignmentsYaml(readFileSync(ASSIGNMENTS_PATH, "utf-8"));
+  return parseAssignmentsYaml(readFileSync2(ASSIGNMENTS_PATH, "utf-8"));
 }
 function parseAssignmentsYaml(content) {
   const lines = content.split(`
@@ -152,26 +250,26 @@ function serializeAssignments(records) {
   if (records.length === 0)
     return "";
   const v = (x) => x === null ? "null" : String(x);
-  return records.map((r) => {
+  return `${records.map((r) => {
     const [first, ...rest] = ASSIGNMENT_KEYS;
     return `- ${first}: ${v(r[first])}
 ` + rest.map((k) => `  ${k}: ${v(r[k])}`).join(`
 `);
   }).join(`
-`) + `
+`)}
 `;
 }
 function writeAssignments(records) {
   writeFileSync(ASSIGNMENTS_PATH, serializeAssignments(records));
 }
 function walkIssues() {
-  const issuesDir = join(ROOT, "issues");
+  const issuesDir = join2(ROOT, "issues");
   const results = [];
   function walk(dir) {
     for (const entry of readdirSync(dir)) {
       if (entry === "templates")
         continue;
-      const full = join(dir, entry);
+      const full = join2(dir, entry);
       if (statSync(full).isDirectory()) {
         walk(full);
         continue;
@@ -180,7 +278,7 @@ function walkIssues() {
         results.push(full);
     }
   }
-  if (existsSync(issuesDir))
+  if (existsSync2(issuesDir))
     walk(issuesDir);
   return results;
 }
@@ -191,7 +289,7 @@ function findIssueFile(taskId) {
   }) ?? null;
 }
 function readIssue(filePath) {
-  const { data, body } = parseFrontmatter(readFileSync(filePath, "utf-8"));
+  const { data, body } = parseFrontmatter(readFileSync2(filePath, "utf-8"));
   return { data, body };
 }
 function writeIssue(filePath, data, body) {
@@ -199,7 +297,7 @@ function writeIssue(filePath, data, body) {
 ` + body);
 }
 function scopeFromPath(filePath) {
-  return relative(join(ROOT, "issues"), filePath).split("/")[0];
+  return relative(join2(ROOT, "issues"), filePath).split("/")[0];
 }
 function slugFromTitle(title) {
   return title.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-");
@@ -223,15 +321,15 @@ function snapshotFiles(paths) {
     return true;
   }).map((path) => ({
     path,
-    existed: existsSync(path),
-    content: existsSync(path) ? readFileSync(path, "utf-8") : null
+    existed: existsSync2(path),
+    content: existsSync2(path) ? readFileSync2(path, "utf-8") : null
   }));
 }
 function restoreFiles(snapshots) {
   for (const snapshot of snapshots) {
     if (snapshot.existed) {
       writeFileSync(snapshot.path, snapshot.content ?? "");
-    } else if (existsSync(snapshot.path)) {
+    } else if (existsSync2(snapshot.path)) {
       rmSync(snapshot.path, { force: true });
     }
   }
@@ -275,9 +373,9 @@ async function commitWithRollback(message, touchedPaths, mutate) {
     throw error;
   }
 }
-var FLOW_PATH = join(ROOT, "flow.md");
+var FLOW_PATH = join2(ROOT, "flow.md");
 function readFlow() {
-  return readFileSync(FLOW_PATH, "utf-8");
+  return readFileSync2(FLOW_PATH, "utf-8");
 }
 function writeFlow(content) {
   writeFileSync(FLOW_PATH, content);
@@ -289,7 +387,7 @@ function replaceSection(content, header, newBody) {
   const lines = content.split(`
 `);
   const level = headerLevel(header);
-  const startIdx = lines.findIndex((l) => l === header);
+  const startIdx = lines.indexOf(header);
   if (startIdx === -1)
     return content;
   let endIdx = lines.length;
@@ -314,7 +412,7 @@ function extractSection(content, header) {
   const lines = content.split(`
 `);
   const level = headerLevel(header);
-  const startIdx = lines.findIndex((l) => l === header);
+  const startIdx = lines.indexOf(header);
   if (startIdx === -1)
     return "";
   let endIdx = lines.length;
@@ -327,6 +425,143 @@ function extractSection(content, header) {
   }
   return lines.slice(startIdx + 1, endIdx).join(`
 `).trim();
+}
+
+// src/task-log.ts
+var START = "<!-- docket:task-log:start -->";
+var END = "<!-- docket:task-log:end -->";
+var EMPTY_LOG = `## Task Log
+
+${START}
+
+### Commits
+
+### Implementation Notes
+
+### History
+
+${END}`;
+function markerCount(body, marker) {
+  return body.split(marker).length - 1;
+}
+function attributes(source) {
+  const attrs = {};
+  for (const part of source.trim().split(/\s+/)) {
+    const match = part.match(/^([a-z][a-z0-9_-]*)=([^\s=]+)$/i);
+    if (!match || attrs[match[1]])
+      return null;
+    attrs[match[1]] = match[2];
+  }
+  return attrs;
+}
+function sectionEnd(content, heading) {
+  const start = content.indexOf(heading);
+  if (start === -1)
+    return null;
+  const after = start + heading.length;
+  const next = content.slice(after).match(/\n###?\s+/);
+  return next?.index === undefined ? content.length : after + next.index;
+}
+function insertInSection(content, heading, entry) {
+  const end = sectionEnd(content, heading);
+  if (end === null)
+    return `${content.trimEnd()}
+
+${heading}
+
+${entry}
+`;
+  return `${content.slice(0, end).trimEnd()}
+
+${entry}
+${content.slice(end)}`;
+}
+function parseTaskLog(body) {
+  const starts = markerCount(body, START);
+  const ends = markerCount(body, END);
+  if (starts === 0 && ends === 0)
+    return { log: null, errors: [] };
+  const errors = [];
+  if (starts !== 1 || ends !== 1)
+    errors.push("Task Log must contain exactly one start and end marker");
+  const start = body.indexOf(START);
+  const end = body.indexOf(END);
+  if (start === -1 || end === -1 || end < start) {
+    errors.push("Task Log markers are out of order");
+    return { log: null, errors };
+  }
+  if (!/^## Task Log\s*$/m.test(body.slice(0, start)))
+    errors.push("Task Log start marker is missing its '## Task Log' heading");
+  if (body.slice(end + END.length).trim())
+    errors.push("Task Log end marker must be at the end of the issue body");
+  const content = body.slice(start + START.length, end);
+  const commits = [];
+  for (const match of content.matchAll(/^\s*-\s+`([^`]+)`\s*(.*)$/gm)) {
+    commits.push({ hash: match[1], subject: match[2].trim() });
+  }
+  const notes = [];
+  const history = [];
+  for (const match of content.matchAll(/<!--\s*docket:(note|event)\s+([^>]*?)\s*-->/g)) {
+    const attrs = attributes(match[2]);
+    if (!attrs?.id) {
+      errors.push(`Malformed docket:${match[1]} marker`);
+      continue;
+    }
+    if (match[1] === "note")
+      notes.push({ id: attrs.id, attributes: attrs });
+    else {
+      const before = content.slice(0, match.index).trimEnd().split(`
+`);
+      history.push({ id: attrs.id, text: before.at(-1) ?? "" });
+    }
+  }
+  for (const [label, values] of [
+    ["commit hash", commits.map((commit) => commit.hash)],
+    ["note ID", notes.map((note) => note.id)],
+    ["event ID", history.map((event) => event.id)]
+  ]) {
+    if (new Set(values).size !== values.length)
+      errors.push(`Duplicate Task Log ${label}`);
+  }
+  return { log: { commits, notes, history }, errors };
+}
+function ensureTaskLog(body) {
+  const parsed = parseTaskLog(body);
+  if (parsed.errors.length > 0)
+    throw new Error(parsed.errors.join("; "));
+  if (parsed.log)
+    return body;
+  return `${body.trimEnd()}
+
+${EMPTY_LOG}
+`;
+}
+function appendHistoryEvent(body, event) {
+  const parsed = parseTaskLog(body);
+  if (parsed.errors.length > 0)
+    throw new Error(parsed.errors.join("; "));
+  if (parsed.log?.history.some((existing) => existing.id === event.id))
+    return body;
+  const withLog = ensureTaskLog(body);
+  const end = withLog.indexOf(END);
+  const content = withLog.slice(0, end);
+  const suffix = withLog.slice(end);
+  return `${insertInSection(content, "### History", `${event.text}
+<!-- docket:event id=${event.id} -->`).trimEnd()}
+
+${suffix}`;
+}
+function appendCommit(body, commit) {
+  const parsed = parseTaskLog(body);
+  if (parsed.errors.length > 0)
+    throw new Error(parsed.errors.join("; "));
+  if (parsed.log?.commits.some((existing) => existing.hash === commit.hash))
+    return body;
+  const withLog = ensureTaskLog(body);
+  const end = withLog.indexOf(END);
+  return `${insertInSection(withLog.slice(0, end), "### Commits", `- \`${commit.hash}\` ${commit.subject}`).trimEnd()}
+
+${withLog.slice(end)}`;
 }
 
 // src/commands.ts
@@ -349,6 +584,21 @@ function parseFlags(args) {
   }
   return flags;
 }
+async function cmdConfig(args) {
+  const subcommand = args[0];
+  if (subcommand === "path") {
+    console.log(configPath());
+    return;
+  }
+  if (subcommand === "validate") {
+    readFileConfig();
+    console.log(`Valid configuration: ${configPath()}`);
+    return;
+  }
+  if (subcommand !== undefined)
+    die2("Usage: task config [path|validate]");
+  console.log(JSON.stringify(effectiveConfig(), null, 2));
+}
 function parseTemplateArg(args) {
   const positional = [];
   let templateName = "issue";
@@ -366,11 +616,11 @@ function parseTemplateArg(args) {
   return { templateName, positional };
 }
 function resolveIssueTemplate(templateName) {
-  const templatePath = join2(ROOT, "issues", "templates", `${templateName}.md`);
-  if (!existsSync2(templatePath)) {
+  const templatePath = join3(ROOT, "issues", "templates", `${templateName}.md`);
+  if (!existsSync3(templatePath)) {
     die2(`Template not found: ${relPath(templatePath)}`);
   }
-  return readFileSync2(templatePath, "utf-8");
+  return readFileSync3(templatePath, "utf-8");
 }
 async function prompt(question) {
   return new Promise((resolve) => {
@@ -398,7 +648,7 @@ async function cmdLint() {
     warnings++;
   };
   const ok = (msg) => console.log(`OK: ${msg}`);
-  if (!existsSync2(FLOW_PATH)) {
+  if (!existsSync3(FLOW_PATH)) {
     err("flow.md missing");
   } else {
     const flow = readFlow();
@@ -475,11 +725,14 @@ async function cmdLint() {
       err(`${rel}: invalid status '${data.status}'`);
     if (data.priority && !VALID_PRIORITIES.has(data.priority))
       warn(`${rel}: invalid priority '${data.priority}'`);
+    for (const message of parseTaskLog(readIssue(filePath).body).errors) {
+      err(`${rel}: ${message}`);
+    }
     const slug = basename3(filePath, ".md").replace(/^\d{4}-\d{2}-\d{2}-/, "");
     if (data.id && data.id !== slug)
       err(`${rel}: id '${data.id}' does not match filename slug '${slug}'`);
   }
-  if (!existsSync2(ASSIGNMENTS_PATH)) {
+  if (!existsSync3(ASSIGNMENTS_PATH)) {
     warn("assignments.yaml not found");
   } else {
     const assignments = readAssignments();
@@ -516,11 +769,11 @@ async function cmdNew(args) {
     die2("Usage: task new <scope> <title> [--template <name>]");
   const title = titleParts.join(" ");
   const slug = slugFromTitle(title);
-  const scopeDir = join2(ROOT, "issues", scope);
-  if (!existsSync2(scopeDir))
+  const scopeDir = join3(ROOT, "issues", scope);
+  if (!existsSync3(scopeDir))
     mkdirSync(scopeDir, { recursive: true });
-  const filePath = join2(scopeDir, `${slug}.md`);
-  if (existsSync2(filePath))
+  const filePath = join3(scopeDir, `${slug}.md`);
+  if (existsSync3(filePath))
     die2(`Already exists: ${relPath(filePath)}`);
   const templateContent = resolveIssueTemplate(templateName);
   const { body: templateBody } = parseFrontmatter(templateContent);
@@ -536,8 +789,8 @@ async function cmdNew(args) {
     created_at: today(),
     closed_at: null
   };
-  writeFileSync2(filePath, serializeFrontmatter(fm) + `
-` + templateBody);
+  writeFileSync2(filePath, `${serializeFrontmatter(fm)}
+${templateBody}`);
   console.log(relPath(filePath));
 }
 async function cmdClaim(args) {
@@ -545,11 +798,11 @@ async function cmdClaim(args) {
   if (!taskId)
     die2("Usage: task claim <task-id> [--owner <name>] [--agent <id>] [--worktree <path>] [--branch <branch>] [--lease <minutes>]");
   const flags = parseFlags(args.slice(1));
-  const agentId = flags["agent"] ?? null;
-  const owner = flags["owner"] ?? (agentId ? agentId : "human");
-  const worktree = flags["worktree"] ?? null;
-  const branch = flags["branch"] ?? null;
-  const leaseMinutes = flags["lease"] ? parseInt(flags["lease"]) : null;
+  const agentId = flags.agent ?? null;
+  const owner = flags.owner ?? (agentId ? agentId : "human");
+  const worktree = flags.worktree ?? null;
+  const branch = flags.branch ?? null;
+  const leaseMinutes = flags.lease ? parseInt(flags.lease, 10) : null;
   const ownerType = agentId ? "agent" : "human";
   if (ownerType === "agent" && !leaseMinutes)
     die2("Agent claims require --lease <minutes>");
@@ -595,7 +848,10 @@ async function cmdClaim(args) {
       data.owner = owner;
       data.owner_type = ownerType;
       data.agent_id = agentId;
-      writeIssue(issuePath, data, body);
+      writeIssue(issuePath, data, appendHistoryEvent(body, {
+        id: `claim-${record.claimed_at}`,
+        text: `- ${record.claimed_at} \u2014 ${owner} claimed task`
+      }));
     }
     await cmdRender();
     await gitAdd(changedFiles);
@@ -652,19 +908,65 @@ async function cmdRelease(args) {
       data.owner = "human";
       data.owner_type = "human";
       data.agent_id = null;
-      writeIssue(issuePath, data, body);
+      writeIssue(issuePath, data, appendHistoryEvent(body, {
+        id: `release-${assignments[idx].released_at}`,
+        text: `- ${assignments[idx].released_at} \u2014 ${assignments[idx].owner} released task`
+      }));
     }
     await cmdRender();
     await gitAdd(changedFiles);
   });
   console.log(`Released '${taskId}'`);
 }
+function acceptanceFailures(body) {
+  const heading = /^## Acceptance Criteria\s*$/m.exec(body);
+  if (!heading || heading.index === undefined)
+    return [
+      "Acceptance Criteria section is absent. Add checked criteria before closing."
+    ];
+  const afterHeading = body.slice(heading.index + heading[0].length);
+  const nextHeading = /^##\s+/m.exec(afterHeading);
+  const section = nextHeading?.index === undefined ? afterHeading : afterHeading.slice(0, nextHeading.index);
+  const checks = [...section.matchAll(/^\s*- \[([ xX])\]\s*(.+)$/gm)];
+  if (checks.length === 0)
+    return [
+      "Acceptance Criteria contains no checkboxes. Add checked criteria before closing."
+    ];
+  return checks.filter((check) => check[1].toLowerCase() !== "x").map((check) => `Acceptance criterion is unchecked: ${check[2]}`);
+}
+async function commitEvidence(taskId, assignment, hashes) {
+  if (!assignment?.worktree)
+    throw new Error(`Related commits require an active assignment with --worktree. Re-claim ${taskId} with --worktree <application-repository>.`);
+  if (assignment.worktree === ROOT)
+    throw new Error("Related commits must come from the application worktree, not Docket's task worktree.");
+  const evidence = [];
+  for (const value of hashes) {
+    const hash = (await $2`git -C ${assignment.worktree} rev-parse ${value}^{commit}`.text()).trim();
+    if (!hash)
+      throw new Error(`Commit '${value}' is not a commit in ${assignment.worktree}.`);
+    const subject = (await $2`git -C ${assignment.worktree} show -s --format=%s ${hash}`.text()).trim();
+    const message = (await $2`git -C ${assignment.worktree} show -s --format=%B ${hash}`.text()).trim();
+    if (/^(claim|triage|close)\(/.test(subject))
+      throw new Error(`Commit '${hash}' is Docket state evidence, not an implementation commit.`);
+    if (!message.includes(taskId))
+      throw new Error(`Commit '${hash}' is not associated with ${taskId}. Include the task ID in its commit message.`);
+    evidence.push({ hash, subject });
+  }
+  return evidence;
+}
+async function worktreeDirty(assignment) {
+  if (!assignment?.worktree)
+    throw new Error("Clean worktree enforcement requires an active assignment with --worktree.");
+  if (assignment.worktree === ROOT)
+    throw new Error("Clean worktree enforcement must target the application worktree, not Docket's task worktree.");
+  return Boolean((await $2`git -C ${assignment.worktree} status --porcelain`.text()).trim());
+}
 async function cmdClose(args) {
   const taskId = args[0];
   const flags = parseFlags(args.slice(1));
   const wontfix = "wontfix" in flags;
   if (!taskId)
-    die2("Usage: task close <task-id> [--wontfix]");
+    die2("Usage: task close <task-id> [--wontfix] [--commit <hash>] [--force --reason <text>]");
   const issuePath = findIssueFile(taskId);
   if (!issuePath)
     die2(`Issue not found for '${taskId}'`);
@@ -672,14 +974,71 @@ async function cmdClose(args) {
   const { data, body } = readIssue(issuePath);
   data.status = wontfix ? "wontfix" : "done";
   data.closed_at = today();
-  const doneDir = join2(ROOT, "issues", scope, "done");
-  if (!existsSync2(doneDir))
+  const doneDir = join3(ROOT, "issues", scope, "done");
+  if (!existsSync3(doneDir))
     mkdirSync(doneDir, { recursive: true });
-  const newPath = join2(doneDir, `${today()}-${taskId}.md`);
+  const newPath = join3(doneDir, `${today()}-${taskId}.md`);
   const assignments = readAssignments();
   const idx = assignments.findIndex((a) => a.task_id === taskId && a.status === "active");
+  const assignment = idx === -1 ? undefined : assignments[idx];
+  const config = effectiveConfig();
+  const force = "force" in flags;
+  const reason = flags.reason?.trim();
+  if ((force || wontfix && (policyApplies(config.completion.acceptanceCriteria, assignment) || policyApplies(config.completion.relatedCommits, assignment) || policyApplies(config.completion.cleanWorktree, assignment) || policyApplies(config.completion.requireActiveAssignment, assignment))) && !reason)
+    die2("Completion override requires --reason <text>.");
+  if (force && !config.completion.allowOverride)
+    die2("Completion overrides are disabled by docket.json (completion.allowOverride is false).");
+  if (!force && !wontfix) {
+    const failures = [];
+    if (policyApplies(config.completion.requireActiveAssignment, assignment) && !assignment)
+      failures.push(`No active assignment for '${taskId}'. Claim the task before closing.`);
+    if (policyApplies(config.completion.acceptanceCriteria, assignment))
+      failures.push(...acceptanceFailures(body));
+    const commitHashes = args.slice(1).flatMap((arg, index, values) => arg === "--commit" && values[index + 1] ? [values[index + 1]] : []);
+    let evidence = [];
+    if (policyApplies(config.completion.relatedCommits, assignment)) {
+      if (commitHashes.length === 0)
+        failures.push(`Related commits are required. Re-run: task close ${taskId} --commit <hash>`);
+      else {
+        try {
+          evidence = await commitEvidence(taskId, assignment, commitHashes);
+        } catch (error) {
+          failures.push(error instanceof Error ? error.message : String(error));
+        }
+      }
+    }
+    if (policyApplies(config.completion.cleanWorktree, assignment)) {
+      try {
+        if (await worktreeDirty(assignment))
+          failures.push(`Application worktree '${assignment?.worktree}' has uncommitted changes. Commit or stash them before closing.`);
+      } catch (error) {
+        failures.push(error instanceof Error ? error.message : String(error));
+      }
+    }
+    if (failures.length > 0)
+      die2(`Cannot close '${taskId}':
+- ${failures.join(`
+- `)}`);
+    flags.__evidence = JSON.stringify(evidence);
+  }
   await commitWithRollback(`close(${taskId})`, [issuePath, newPath, FLOW_PATH, ASSIGNMENTS_PATH], async () => {
-    writeIssue(issuePath, data, body);
+    let updatedBody = body;
+    for (const commit of JSON.parse(flags.__evidence ?? "[]"))
+      updatedBody = appendCommit(updatedBody, commit);
+    if (force && reason)
+      updatedBody = appendHistoryEvent(updatedBody, {
+        id: `override-${new Date().toISOString()}`,
+        text: `- ${new Date().toISOString()} \u2014 completion override: ${reason}`
+      });
+    if (wontfix && reason)
+      updatedBody = appendHistoryEvent(updatedBody, {
+        id: `wontfix-${new Date().toISOString()}`,
+        text: `- ${new Date().toISOString()} \u2014 wontfix reason: ${reason}`
+      });
+    writeIssue(issuePath, data, appendHistoryEvent(updatedBody, {
+      id: `close-${data.closed_at}`,
+      text: `- ${data.closed_at} \u2014 task closed by ${data.owner ?? "human"}`
+    }));
     renameSync(issuePath, newPath);
     if (idx !== -1) {
       assignments[idx].status = "released";
@@ -771,14 +1130,14 @@ async function cmdList(args) {
     _path: p,
     _scope: scopeFromPath(p)
   }));
-  if (flags["status"])
-    issues = issues.filter((i) => i.status === flags["status"]);
-  if (flags["scope"])
-    issues = issues.filter((i) => i._scope === flags["scope"]);
-  if (flags["owner"])
-    issues = issues.filter((i) => i.owner === flags["owner"]);
-  if (flags["tag"])
-    issues = issues.filter((i) => Array.isArray(i.tags) && i.tags.includes(flags["tag"]));
+  if (flags.status)
+    issues = issues.filter((i) => i.status === flags.status);
+  if (flags.scope)
+    issues = issues.filter((i) => i._scope === flags.scope);
+  if (flags.owner)
+    issues = issues.filter((i) => i.owner === flags.owner);
+  if (flags.tag)
+    issues = issues.filter((i) => Array.isArray(i.tags) && i.tags.includes(flags.tag));
   if (jsonOutput) {
     const out = issues.map(({ _path, _scope, ...rest }) => rest);
     console.log(JSON.stringify(out, null, 2));
@@ -892,7 +1251,7 @@ async function cmdIngest(args) {
   const flags = parseFlags(args);
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const template = resolveIssueTemplate(templateName);
-  let backend = flags["backend"] ?? "";
+  let backend = flags.backend ?? "";
   if (!backend) {
     backend = await detectBackend();
     console.log(`Using backend: ${backend}`);
@@ -909,8 +1268,8 @@ async function cmdIngest(args) {
     console.log("Issue Scratchpad is empty.");
     return;
   }
-  const issuesDir = join2(ROOT, "issues");
-  const scopes = existsSync2(issuesDir) ? readdirSync2(issuesDir).filter((e) => statSync2(join2(issuesDir, e)).isDirectory() && e !== "templates") : [];
+  const issuesDir = join3(ROOT, "issues");
+  const scopes = existsSync3(issuesDir) ? readdirSync2(issuesDir).filter((e) => statSync2(join3(issuesDir, e)).isDirectory() && e !== "templates") : [];
   const SYSTEM_PROMPT = `You are a task management assistant. Classify each input bullet point from an issue scratchpad.
 
 Available scopes: ${scopes.join(", ")}
@@ -950,10 +1309,10 @@ Clarification: ${answer}`, apiKey);
       continue;
     }
     if (result.type === "issue" && result.scope && result.slug && result.markdown) {
-      const scopeDir = join2(ROOT, "issues", result.scope);
-      if (!existsSync2(scopeDir))
+      const scopeDir = join3(ROOT, "issues", result.scope);
+      if (!existsSync3(scopeDir))
         mkdirSync(scopeDir, { recursive: true });
-      const filePath = join2(scopeDir, `${result.slug}.md`);
+      const filePath = join3(scopeDir, `${result.slug}.md`);
       writeFileSync2(filePath, result.markdown);
       newFiles.push(filePath);
       console.log(`  Created: ${relPath(filePath)}`);
@@ -987,6 +1346,9 @@ Commands:
     --reason <note>         Optional reason
   close <task-id>           Mark done and archive
     --wontfix              Archive as wontfix instead of done
+    --commit <hash>         Record validated implementation evidence
+    --force --reason <text> Override configured completion gates
+  config [path|validate]    Show or validate docket.json configuration
   doctor                    Expire stale leases, warn on drift
   render                    Rebuild flow.md Active / Agent Queue
   list                      List issues (filterable)
@@ -1020,6 +1382,9 @@ async function main(args = process.argv.slice(2)) {
       break;
     case "close":
       await cmdClose(rest);
+      break;
+    case "config":
+      await cmdConfig(rest);
       break;
     case "doctor":
       await cmdDoctor();

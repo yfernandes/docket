@@ -95,36 +95,36 @@ evidence, but must require a reason when completion policies are enabled.
 
 ## Acceptance Criteria
 
-- [ ] `docket.json` loads without runtime dependencies and rejects unknown
+- [x] `docket.json` loads without runtime dependencies and rejects unknown
       versions or invalid policy values with actionable errors.
-- [ ] Effective configuration follows CLI, environment, file, and default
+- [x] Effective configuration follows CLI, environment, file, and default
       precedence in that order.
-- [ ] `task config`, `task config path`, and `task config validate` expose the
+- [x] `task config`, `task config path`, and `task config validate` expose the
       effective configuration without mutating files.
-- [ ] Setup supports configurable Docket directory and branch names through
+- [x] Setup supports configurable Docket directory and branch names through
       flags, existing environment variables, and the config file.
-- [ ] Existing installations with no config retain current human behavior.
-- [ ] `agents` policies apply only when the active assignment is agent-owned;
+- [x] Existing installations with no config retain current human behavior.
+- [x] `agents` policies apply only when the active assignment is agent-owned;
       JSON output alone never changes enforcement.
-- [ ] Required acceptance criteria fail closure when the section is absent,
+- [x] Required acceptance criteria fail closure when the section is absent,
       contains no checkboxes, or contains any unchecked checkbox.
-- [ ] Closure errors list the exact unmet criteria and remediation commands.
-- [ ] Required commit evidence accepts only validated application-repository
+- [x] Closure errors list the exact unmet criteria and remediation commands.
+- [x] Required commit evidence accepts only validated application-repository
       commits associated with the task.
-- [ ] Docket `claim(...)`, `triage(...)`, and `close(...)` state commits cannot
+- [x] Docket `claim(...)`, `triage(...)`, and `close(...)` state commits cannot
       satisfy related-commit enforcement.
-- [ ] A required clean worktree check detects uncommitted application changes
+- [x] A required clean worktree check detects uncommitted application changes
       without confusing the separate Docket task worktree.
-- [ ] Guarded closure requires a matching active assignment when configured.
-- [ ] `--force --reason <text>` works only when overrides are enabled and is
+- [x] Guarded closure requires a matching active assignment when configured.
+- [x] `--force --reason <text>` works only when overrides are enabled and is
       recorded in Task Log history.
-- [ ] `--wontfix` bypasses implementation evidence but requires a reason under
+- [x] `--wontfix` bypasses implementation evidence but requires a reason under
       enforced policies.
-- [ ] The AA-01 failure mode is reproduced by a regression test that fails
+- [x] The AA-01 failure mode is reproduced by a regression test that fails
       before the gates and passes only after criteria and commit evidence are
       supplied.
-- [ ] Source and bundled entrypoints have matching behavior.
-- [ ] `bun run build`, `bun test`, `bun run check`, `task lint`, and
+- [x] Source and bundled entrypoints have matching behavior.
+- [x] `bun run build`, `bun test`, `bun run check`, `task lint`, and
       `git diff --check` pass.
 
 ## Blocked by

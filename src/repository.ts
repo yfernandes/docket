@@ -72,17 +72,15 @@ export const ASSIGNMENT_KEYS: (keyof Assignment)[] = [
 export function serializeAssignments(records: Assignment[]): string {
 	if (records.length === 0) return "";
 	const v = (x: unknown) => (x === null ? "null" : String(x));
-	return (
-		records
-			.map((r) => {
-				const [first, ...rest] = ASSIGNMENT_KEYS;
-				return (
-					`- ${first}: ${v(r[first])}\n` +
-					rest.map((k) => `  ${k}: ${v(r[k])}`).join("\n")
-				);
-			})
-			.join("\n") + "\n"
-	);
+	return `${records
+		.map((r) => {
+			const [first, ...rest] = ASSIGNMENT_KEYS;
+			return (
+				`- ${first}: ${v(r[first])}\n` +
+				rest.map((k) => `  ${k}: ${v(r[k])}`).join("\n")
+			);
+		})
+		.join("\n")}\n`;
 }
 
 export function writeAssignments(records: Assignment[]): void {
@@ -273,7 +271,7 @@ export function replaceSection(
 ): string {
 	const lines = content.split("\n");
 	const level = headerLevel(header);
-	const startIdx = lines.findIndex((l) => l === header);
+	const startIdx = lines.indexOf(header);
 	if (startIdx === -1) return content;
 
 	let endIdx = lines.length;
@@ -297,7 +295,7 @@ export function replaceSection(
 export function extractSection(content: string, header: string): string {
 	const lines = content.split("\n");
 	const level = headerLevel(header);
-	const startIdx = lines.findIndex((l) => l === header);
+	const startIdx = lines.indexOf(header);
 	if (startIdx === -1) return "";
 
 	let endIdx = lines.length;

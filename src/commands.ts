@@ -10,6 +10,12 @@ import {
 import { basename, join } from "node:path";
 import { createInterface } from "node:readline";
 import { $ } from "bun";
+import {
+	configPath,
+	effectiveConfig,
+	policyApplies,
+	readFileConfig,
+} from "./config";
 import { parseFrontmatter, serializeFrontmatter } from "./frontmatter";
 import {
 	ASSIGNMENTS_PATH,
@@ -34,7 +40,8 @@ import {
 	writeIssue,
 } from "./repository";
 import { ROOT } from "./runtime";
-import type { IssueFrontmatter } from "./types";
+import { appendCommit, appendHistoryEvent, parseTaskLog } from "./task-log";
+import type { Assignment, IssueFrontmatter } from "./types";
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
@@ -57,6 +64,21 @@ export function parseFlags(args: string[]): Record<string, string> {
 		}
 	}
 	return flags;
+}
+
+export async function cmdConfig(args: string[]) {
+	const subcommand = args[0];
+	if (subcommand === "path") {
+		console.log(configPath());
+		return;
+	}
+	if (subcommand === "validate") {
+		readFileConfig();
+		console.log(`Valid configuration: ${configPath()}`);
+		return;
+	}
+	if (subcommand !== undefined) die("Usage: task config [path|validate]");
+	console.log(JSON.stringify(effectiveConfig(), null, 2));
 }
 
 export function parseTemplateArg(args: string[]): {
@@ -203,6 +225,9 @@ export async function cmdLint() {
 			err(`${rel}: invalid status '${data.status}'`);
 		if (data.priority && !VALID_PRIORITIES.has(data.priority))
 			warn(`${rel}: invalid priority '${data.priority}'`);
+		for (const message of parseTaskLog(readIssue(filePath).body).errors) {
+			err(`${rel}: ${message}`);
+		}
 
 		const slug = basename(filePath, ".md").replace(/^\d{4}-\d{2}-\d{2}-/, "");
 		if (data.id && data.id !== slug)
@@ -280,7 +305,7 @@ export async function cmdNew(args: string[]) {
 		closed_at: null,
 	};
 
-	writeFileSync(filePath, serializeFrontmatter(fm) + "\n" + templateBody);
+	writeFileSync(filePath, `${serializeFrontmatter(fm)}\n${templateBody}`);
 	console.log(relPath(filePath));
 }
 
@@ -294,11 +319,11 @@ export async function cmdClaim(args: string[]) {
 		);
 
 	const flags = parseFlags(args.slice(1));
-	const agentId = flags["agent"] ?? null;
-	const owner = flags["owner"] ?? (agentId ? agentId : "human");
-	const worktree = flags["worktree"] ?? null;
-	const branch = flags["branch"] ?? null;
-	const leaseMinutes = flags["lease"] ? parseInt(flags["lease"]) : null;
+	const agentId = flags.agent ?? null;
+	const owner = flags.owner ?? (agentId ? agentId : "human");
+	const worktree = flags.worktree ?? null;
+	const branch = flags.branch ?? null;
+	const leaseMinutes = flags.lease ? parseInt(flags.lease, 10) : null;
 	const ownerType: "human" | "agent" = agentId ? "agent" : "human";
 
 	if (ownerType === "agent" && !leaseMinutes)
@@ -358,7 +383,14 @@ export async function cmdClaim(args: string[]) {
 				data.owner = owner;
 				data.owner_type = ownerType;
 				data.agent_id = agentId;
-				writeIssue(issuePath, data, body);
+				writeIssue(
+					issuePath,
+					data,
+					appendHistoryEvent(body, {
+						id: `claim-${record.claimed_at}`,
+						text: `- ${record.claimed_at} — ${owner} claimed task`,
+					}),
+				);
 			}
 
 			await cmdRender();
@@ -434,7 +466,14 @@ export async function cmdRelease(args: string[]) {
 			data.owner = "human";
 			data.owner_type = "human";
 			data.agent_id = null;
-			writeIssue(issuePath, data, body);
+			writeIssue(
+				issuePath,
+				data,
+				appendHistoryEvent(body, {
+					id: `release-${assignments[idx].released_at}`,
+					text: `- ${assignments[idx].released_at} — ${assignments[idx].owner} released task`,
+				}),
+			);
 		}
 
 		await cmdRender();
@@ -445,11 +484,93 @@ export async function cmdRelease(args: string[]) {
 
 // ── task close ────────────────────────────────────────────────────────────────
 
+function acceptanceFailures(body: string): string[] {
+	const heading = /^## Acceptance Criteria\s*$/m.exec(body);
+	if (!heading || heading.index === undefined)
+		return [
+			"Acceptance Criteria section is absent. Add checked criteria before closing.",
+		];
+	const afterHeading = body.slice(heading.index + heading[0].length);
+	const nextHeading = /^##\s+/m.exec(afterHeading);
+	const section =
+		nextHeading?.index === undefined
+			? afterHeading
+			: afterHeading.slice(0, nextHeading.index);
+	const checks = [...section.matchAll(/^\s*- \[([ xX])\]\s*(.+)$/gm)];
+	if (checks.length === 0)
+		return [
+			"Acceptance Criteria contains no checkboxes. Add checked criteria before closing.",
+		];
+	return checks
+		.filter((check) => check[1].toLowerCase() !== "x")
+		.map((check) => `Acceptance criterion is unchecked: ${check[2]}`);
+}
+
+async function commitEvidence(
+	taskId: string,
+	assignment: Assignment | undefined,
+	hashes: string[],
+): Promise<{ hash: string; subject: string }[]> {
+	if (!assignment?.worktree)
+		throw new Error(
+			`Related commits require an active assignment with --worktree. Re-claim ${taskId} with --worktree <application-repository>.`,
+		);
+	if (assignment.worktree === ROOT)
+		throw new Error(
+			"Related commits must come from the application worktree, not Docket's task worktree.",
+		);
+	const evidence: { hash: string; subject: string }[] = [];
+	for (const value of hashes) {
+		const hash = (
+			await $`git -C ${assignment.worktree} rev-parse ${value}^{commit}`.text()
+		).trim();
+		if (!hash)
+			throw new Error(
+				`Commit '${value}' is not a commit in ${assignment.worktree}.`,
+			);
+		const subject = (
+			await $`git -C ${assignment.worktree} show -s --format=%s ${hash}`.text()
+		).trim();
+		const message = (
+			await $`git -C ${assignment.worktree} show -s --format=%B ${hash}`.text()
+		).trim();
+		if (/^(claim|triage|close)\(/.test(subject))
+			throw new Error(
+				`Commit '${hash}' is Docket state evidence, not an implementation commit.`,
+			);
+		if (!message.includes(taskId))
+			throw new Error(
+				`Commit '${hash}' is not associated with ${taskId}. Include the task ID in its commit message.`,
+			);
+		evidence.push({ hash, subject });
+	}
+	return evidence;
+}
+
+async function worktreeDirty(
+	assignment: Assignment | undefined,
+): Promise<boolean> {
+	if (!assignment?.worktree)
+		throw new Error(
+			"Clean worktree enforcement requires an active assignment with --worktree.",
+		);
+	if (assignment.worktree === ROOT)
+		throw new Error(
+			"Clean worktree enforcement must target the application worktree, not Docket's task worktree.",
+		);
+	return Boolean(
+		(await $`git -C ${assignment.worktree} status --porcelain`.text()).trim(),
+	);
+}
+
 export async function cmdClose(args: string[]) {
 	const taskId = args[0];
 	const flags = parseFlags(args.slice(1));
 	const wontfix = "wontfix" in flags;
-	if (!taskId) die("Usage: task close <task-id> [--wontfix]");
+	if (!taskId)
+		die(
+			"Usage: task close <task-id> [--wontfix] [--commit <hash>] [--force --reason <text>]",
+		);
 
 	const issuePath = findIssueFile(taskId);
 	if (!issuePath) die(`Issue not found for '${taskId}'`);
@@ -467,12 +588,101 @@ export async function cmdClose(args: string[]) {
 	const idx = assignments.findIndex(
 		(a) => a.task_id === taskId && a.status === "active",
 	);
+	const assignment = idx === -1 ? undefined : assignments[idx];
+	const config = effectiveConfig();
+	const force = "force" in flags;
+	const reason = flags.reason?.trim();
+	if (
+		(force ||
+			(wontfix &&
+				(policyApplies(config.completion.acceptanceCriteria, assignment) ||
+					policyApplies(config.completion.relatedCommits, assignment) ||
+					policyApplies(config.completion.cleanWorktree, assignment) ||
+					policyApplies(
+						config.completion.requireActiveAssignment,
+						assignment,
+					)))) &&
+		!reason
+	)
+		die("Completion override requires --reason <text>.");
+	if (force && !config.completion.allowOverride)
+		die(
+			"Completion overrides are disabled by docket.json (completion.allowOverride is false).",
+		);
+	if (!force && !wontfix) {
+		const failures: string[] = [];
+		if (
+			policyApplies(config.completion.requireActiveAssignment, assignment) &&
+			!assignment
+		)
+			failures.push(
+				`No active assignment for '${taskId}'. Claim the task before closing.`,
+			);
+		if (policyApplies(config.completion.acceptanceCriteria, assignment))
+			failures.push(...acceptanceFailures(body));
+		const commitHashes = args
+			.slice(1)
+			.flatMap((arg, index, values) =>
+				arg === "--commit" && values[index + 1] ? [values[index + 1]] : [],
+			);
+		let evidence: { hash: string; subject: string }[] = [];
+		if (policyApplies(config.completion.relatedCommits, assignment)) {
+			if (commitHashes.length === 0)
+				failures.push(
+					`Related commits are required. Re-run: task close ${taskId} --commit <hash>`,
+				);
+			else {
+				try {
+					evidence = await commitEvidence(taskId, assignment, commitHashes);
+				} catch (error) {
+					failures.push(error instanceof Error ? error.message : String(error));
+				}
+			}
+		}
+		if (policyApplies(config.completion.cleanWorktree, assignment)) {
+			try {
+				if (await worktreeDirty(assignment))
+					failures.push(
+						`Application worktree '${assignment?.worktree}' has uncommitted changes. Commit or stash them before closing.`,
+					);
+			} catch (error) {
+				failures.push(error instanceof Error ? error.message : String(error));
+			}
+		}
+		if (failures.length > 0)
+			die(`Cannot close '${taskId}':\n- ${failures.join("\n- ")}`);
+		// Keep only validated evidence; unguarded human closures retain legacy behavior.
+		flags.__evidence = JSON.stringify(evidence);
+	}
 
 	await commitWithRollback(
 		`close(${taskId})`,
 		[issuePath, newPath, FLOW_PATH, ASSIGNMENTS_PATH],
 		async () => {
-			writeIssue(issuePath, data, body);
+			let updatedBody = body;
+			for (const commit of JSON.parse(flags.__evidence ?? "[]") as {
+				hash: string;
+				subject: string;
+			}[])
+				updatedBody = appendCommit(updatedBody, commit);
+			if (force && reason)
+				updatedBody = appendHistoryEvent(updatedBody, {
+					id: `override-${new Date().toISOString()}`,
+					text: `- ${new Date().toISOString()} — completion override: ${reason}`,
+				});
+			if (wontfix && reason)
+				updatedBody = appendHistoryEvent(updatedBody, {
+					id: `wontfix-${new Date().toISOString()}`,
+					text: `- ${new Date().toISOString()} — wontfix reason: ${reason}`,
+				});
+			writeIssue(
+				issuePath,
+				data,
+				appendHistoryEvent(updatedBody, {
+					id: `close-${data.closed_at}`,
+					text: `- ${data.closed_at} — task closed by ${data.owner ?? "human"}`,
+				}),
+			);
 			renameSync(issuePath, newPath);
 
 			// Release any active assignment
@@ -615,14 +825,12 @@ export async function cmdList(args: string[]) {
 		_scope: scopeFromPath(p),
 	}));
 
-	if (flags["status"])
-		issues = issues.filter((i) => i.status === flags["status"]);
-	if (flags["scope"])
-		issues = issues.filter((i) => i._scope === flags["scope"]);
-	if (flags["owner"]) issues = issues.filter((i) => i.owner === flags["owner"]);
-	if (flags["tag"])
+	if (flags.status) issues = issues.filter((i) => i.status === flags.status);
+	if (flags.scope) issues = issues.filter((i) => i._scope === flags.scope);
+	if (flags.owner) issues = issues.filter((i) => i.owner === flags.owner);
+	if (flags.tag)
 		issues = issues.filter(
-			(i) => Array.isArray(i.tags) && i.tags.includes(flags["tag"]),
+			(i) => Array.isArray(i.tags) && i.tags.includes(flags.tag),
 		);
 
 	if (jsonOutput) {
@@ -779,7 +987,7 @@ export async function cmdIngest(args: string[]) {
 	const template = resolveIssueTemplate(templateName);
 
 	// Resolve backend: explicit flag > auto-detect
-	let backend = flags["backend"] ?? "";
+	let backend = flags.backend ?? "";
 	if (!backend) {
 		backend = await detectBackend();
 		console.log(`Using backend: ${backend}`);

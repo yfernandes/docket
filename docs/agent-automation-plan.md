@@ -96,6 +96,24 @@ Rules:
 Before changing command behavior or the ledger schema, add regression tests
 that lock down these guarantees.
 
+### Compatibility test matrix
+
+AA-01 establishes the baseline below using isolated repositories populated with
+literal pre-automation issue and assignment files. The fixtures intentionally
+omit a Task Log and are not generated through the current serializers.
+
+| Guarantee | Fixture assertion | Entrypoints |
+| --- | --- | --- |
+| Legacy issue and assignment parsing | `list`, `lint`, and `doctor` read legacy files without changing a byte | `bun src/cli.ts`, generated `task` |
+| Default human interface | Table output identifies the legacy task; claim and release retain their focused messages | `bun src/cli.ts`, generated `task` |
+| Existing human lifecycle | A human claims an open legacy task, releases it, and closes an existing human assignment | `bun src/cli.ts`, generated `task` |
+| Archive and path resolution | Closing a scoped task moves it to that scope's dated `done/` path | `bun src/cli.ts`, generated `task` |
+| Transaction safety | A forced Git staging failure restores the issue, assignments ledger, and generated flow byte-for-byte | `bun src/cli.ts` |
+
+The matrix is deliberately limited to the current human-first protocol. JSON
+envelopes, Task Log storage, claim IDs, fixtures, and new commands are covered
+only by their later work packages.
+
 ## Source-of-truth boundaries
 
 Each storage surface has one responsibility:

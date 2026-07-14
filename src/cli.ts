@@ -4,6 +4,7 @@
 import {
 	cmdClaim,
 	cmdClose,
+	cmdConfig,
 	cmdDoctor,
 	cmdIngest,
 	cmdLint,
@@ -33,6 +34,9 @@ Commands:
     --reason <note>         Optional reason
   close <task-id>           Mark done and archive
     --wontfix              Archive as wontfix instead of done
+    --commit <hash>         Record validated implementation evidence
+    --force --reason <text> Override configured completion gates
+  config [path|validate]    Show or validate docket.json configuration
   doctor                    Expire stale leases, warn on drift
   render                    Rebuild flow.md Active / Agent Queue
   list                      List issues (filterable)
@@ -68,6 +72,9 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 			break;
 		case "close":
 			await cmdClose(rest);
+			break;
+		case "config":
+			await cmdConfig(rest);
 			break;
 		case "doctor":
 			await cmdDoctor();
