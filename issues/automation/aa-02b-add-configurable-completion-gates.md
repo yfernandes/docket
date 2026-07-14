@@ -1,11 +1,11 @@
 ---
 id: aa-02b-add-configurable-completion-gates
 title: AA-02B Add configurable completion gates
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex
+owner_type: agent
+agent_id: codex
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -154,3 +154,18 @@ lands and the project enables its `agents` policies.
 - `docs/agent-automation-plan.md#task-log`
 - `docs/agent-automation-plan.md#commit-capture`
 - `issues/automation/done/2026-07-14-aa-01-protect-human-workflows-with-compatibility-fixtures.md`
+
+## Task Log
+
+<!-- docket:task-log:start -->
+
+### Commits
+
+### Implementation Notes
+
+### History
+
+- 2026-07-14T03:46:04.296Z — codex claimed task
+<!-- docket:event id=claim-2026-07-14T03:46:04.296Z -->
+
+<!-- docket:task-log:end -->
