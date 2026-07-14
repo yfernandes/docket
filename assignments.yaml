@@ -1,5 +1,5 @@
 - task_id: aa-01-protect-human-workflows-with-compatibility-fixtures
-  status: active
+  status: released
   owner: codex
   owner_type: agent
   agent_id: codex
@@ -7,4 +7,4 @@
   branch: null
   claimed_at: 2026-07-14T02:24:57.034Z
   lease_until: 2026-07-14T04:24:57.034Z
-  released_at: null
+  released_at: 2026-07-14T02:28:03.496Z
