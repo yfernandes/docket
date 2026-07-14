@@ -1,7 +1,7 @@
 ---
 id: aa-01-protect-human-workflows-with-compatibility-fixtures
 title: AA-01 Protect human workflows with compatibility fixtures
-status: needs-triage
+status: ready-for-agent
 priority: P2
 owner: human
 owner_type: human
