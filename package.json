@@ -1,0 +1,11 @@
+{
+	"name": "docket",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "bun build ./src/cli.ts --target=bun --outfile=./task",
+		"test": "bun test",
+		"check": "bunx biome check .",
+		"verify": "bun run build && bun run test && bun run check"
+	}
+}

@@ -174,15 +174,30 @@ See [RULES.md](RULES.md) for the full invariant spec and [STRUCTURE.md](STRUCTUR
 
 ---
 
+## Roadmap
+
+The detailed plan for JSON automation, durable task history, safe agent claims,
+multi-agent participation, and crew fixtures lives in
+[docs/agent-automation-plan.md](docs/agent-automation-plan.md).
+
+---
+
 ## Contributing
 
-Issues and PRs welcome. docket is a Bun/TypeScript script with no build step — clone, edit `task`, and run it directly.
+Issues and PRs welcome. Docket's maintainable source lives in `src/` and Bun
+bundles it into the single, dependency-free `task` file shipped to users.
 
 ```bash
 git clone https://github.com/yfernandes/docket
 cd docket
-bun task help
+bun run build
+bun test
+./task help
 ```
+
+`task` is a generated artifact; edit `src/` and rebuild it instead of editing
+the bundle directly. No runtime packages are required—installed copies only
+need Bun in `PATH`.
 
 ---
 

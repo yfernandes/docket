@@ -18,7 +18,6 @@ Usage: update.sh [--yes]
 
 Update an existing docket install. This overwrites only distro-managed files:
   task
-  task.ts
   README.md
   RULES.md
   SETUP.md
@@ -120,7 +119,6 @@ fi
 cat >&2 <<EOF
 WARNING: this update may overwrite local changes to distro-managed docket files:
   $docket_dir/task
-  $docket_dir/task.ts
   $docket_dir/README.md
   $docket_dir/RULES.md
   $docket_dir/SETUP.md
@@ -165,7 +163,6 @@ merge_dir() {
 }
 
 copy_file "$tmpdir/task" "$docket_dir/task"
-copy_file "$tmpdir/task.ts" "$docket_dir/task.ts"
 copy_file "$tmpdir/README.md" "$docket_dir/README.md"
 copy_file "$tmpdir/RULES.md" "$docket_dir/RULES.md"
 copy_file "$tmpdir/SETUP.md" "$docket_dir/SETUP.md"
@@ -179,7 +176,6 @@ chmod +x "$docket_dir/scripts/setup.sh" "$docket_dir/scripts/update.sh"
 
 stage_paths=(
   task
-  task.ts
   README.md
   RULES.md
   SETUP.md

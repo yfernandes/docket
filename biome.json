@@ -6,7 +6,7 @@
 		"useIgnoreFile": false
 	},
 	"files": {
-		"includes": ["task.ts"],
+		"includes": ["src/**/*.ts", "tests/**/*.ts"],
 		"ignoreUnknown": true
 	},
 	"formatter": {

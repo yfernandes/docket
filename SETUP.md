@@ -227,7 +227,6 @@ The updater warns that local changes to affected distro-managed files may be
 overwritten. It updates:
 
 - `task`
-- `task.ts`
 - `README.md`
 - `RULES.md`
 - `SETUP.md`
@@ -253,7 +252,6 @@ for the update commit.
 ├── .gemini/ / .github/         ← references matching tasks/skills/agents file
 └── tasks/                      ← gitignored worktree (tasks branch)
     ├── task
-    ├── task.ts
     ├── flow.md
     ├── assignments.yaml
     ├── scripts/

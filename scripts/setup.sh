@@ -107,7 +107,6 @@ copy_path() {
 }
 
 copy_path "$tmpdir/task" "$DOCKET_DIR/task"
-copy_path "$tmpdir/task.ts" "$DOCKET_DIR/task.ts"
 copy_path "$tmpdir/README.md" "$DOCKET_DIR/README.md"
 copy_path "$tmpdir/RULES.md" "$DOCKET_DIR/RULES.md"
 copy_path "$tmpdir/SETUP.md" "$DOCKET_DIR/SETUP.md"

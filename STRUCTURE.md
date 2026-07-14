@@ -7,7 +7,8 @@ for all mutations — see `skills/README.md` for agent usage.
 
 ```
 <repo-root>/
-├── task                        ← CLI (Bun/TypeScript, no build step)
+├── task                        ← bundled CLI distributed to installations
+├── src/                        ← modular TypeScript source (upstream repo)
 ├── flow.md                     ← daily tracker
 ├── assignments.yaml            ← ownership ledger (source of truth)
 ├── README.md
@@ -52,8 +53,9 @@ for all mutations — see `skills/README.md` for agent usage.
 
 ### `task`
 
-The CLI. All commands auto-commit affected files. Run `./task help` for
-full usage or read `skills/README.md`.
+The generated, single-file CLI. All commands auto-commit affected files. Run
+`./task help` for full usage or read `skills/README.md`. Contributors edit the
+modules in `src/` and regenerate this artifact with `bun run build`.
 
 ### `flow.md`
 
@@ -105,8 +107,8 @@ curl -fsSL https://raw.githubusercontent.com/yfernandes/docket/refs/heads/main/s
 curl -fsSL https://raw.githubusercontent.com/yfernandes/docket/refs/heads/main/scripts/update.sh | bash
 ```
 
-The updater refreshes distro-managed files only: `task`, `task.ts`, root docs,
-`skills/`, `scripts/`, and `issues/templates/`. It intentionally does not
+The updater refreshes distro-managed files only: `task`, root docs, `skills/`,
+`scripts/`, and `issues/templates/`. It intentionally does not
 overwrite `flow.md`, `assignments.yaml`, live issues, backlog files, or done
 archives. Run it from the docket worktree itself or from a main repo root whose
 `./task` symlink points at that worktree.
