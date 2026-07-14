@@ -1,11 +1,11 @@
 ---
 id: aa-01-protect-human-workflows-with-compatibility-fixtures
 title: AA-01 Protect human workflows with compatibility fixtures
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex
+owner_type: agent
+agent_id: codex
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
