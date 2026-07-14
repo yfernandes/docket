@@ -1,14 +1,14 @@
 ---
 id: aa-02-add-a-durable-task-log
 title: AA-02 Add a durable task log
-status: in-progress
+status: done
 priority: P2
 owner: codex
 owner_type: agent
 agent_id: codex
 tags: [automation]
 created_at: 2026-07-14
-closed_at: null
+closed_at: 2026-07-14
 ---
 ## Type
 
@@ -45,3 +45,18 @@ Do not add the authored `note` command, cross-task scouting, automatic commit de
 
 - `docs/agent-automation-plan.md#task-log`
 - `docs/agent-automation-plan.md#aa-02--task-log-parser-and-mutation-helpers`
+
+## Task Log
+
+<!-- docket:task-log:start -->
+
+### Commits
+
+### Implementation Notes
+
+### History
+
+- 2026-07-14 — task closed by codex
+<!-- docket:event id=close-2026-07-14 -->
+
+<!-- docket:task-log:end -->
