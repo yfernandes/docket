@@ -1,7 +1,7 @@
 ---
 id: aa-05-record-notes-and-lifecycle-history
 title: AA-05 Record notes and lifecycle history
-status: needs-triage
+status: ready-for-agent
 priority: P2
 owner: human
 owner_type: human
