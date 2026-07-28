@@ -408,7 +408,7 @@
   lease_until: 2026-07-28T09:23:54.017Z
   released_at: 2026-07-28T07:24:14.485Z
 - task_id: aa-13-document-and-verify-reference-agent-loops
-  status: active
+  status: released
   owner: codex-aa13-close
   owner_type: agent
   agent_id: codex-aa13-close
@@ -418,4 +418,4 @@
   base_commit: c18e0a78e417534b26975e99dda883fcac91710c
   claimed_at: 2026-07-28T07:25:49.798Z
   lease_until: 2026-07-28T10:25:49.791Z
-  released_at: null
+  released_at: 2026-07-28T07:26:36.467Z

@@ -1,14 +1,14 @@
 ---
 id: aa-13-document-and-verify-reference-agent-loops
 title: AA-13 Document and verify reference agent loops
-status: in-progress
+status: done
 priority: P2
 owner: codex-aa13-close
 owner_type: agent
 agent_id: codex-aa13-close
 tags: [automation]
 created_at: 2026-07-14
-closed_at: null
+closed_at: 2026-07-28
 ---
 ## Type
 
@@ -105,5 +105,8 @@ Reconciliation: guarded close still fails after AA-15 because feature commit da6
 
 - 2026-07-28T07:25:49.798Z — codex-aa13-close claimed task
 <!-- docket:event id=claim-2026-07-28T07:25:49.798Z -->
+
+- 2026-07-28 — task closed by codex-aa13-close
+<!-- docket:event id=close-2026-07-28 -->
 
 <!-- docket:task-log:end -->
