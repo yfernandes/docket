@@ -1,7 +1,7 @@
 ---
 id: aa-04-show-complete-task-context
 title: AA-04 Show complete task context
-status: in-progress
+status: ready-for-agent
 priority: P2
 owner: codex
 owner_type: agent
@@ -61,5 +61,8 @@ Do not add note creation, commit detection, fixture slot calculation, or cross-t
 
 - 2026-07-28T04:57:09.925Z — codex claim expired
 <!-- docket:event id=expiry-2026-07-28T04:18:01.616Z -->
+
+- 2026-07-28T07:08:24.936Z — task triaged in-progress -> ready-for-agent
+<!-- docket:event id=triage-2026-07-28T07:08:24.936Z -->
 
 <!-- docket:task-log:end -->
