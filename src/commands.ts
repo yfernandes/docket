@@ -18,6 +18,13 @@ import {
 } from "./config";
 import { parseFrontmatter, serializeFrontmatter } from "./frontmatter";
 import {
+	domainError,
+	isJsonMode,
+	operationalError,
+	ProtocolError,
+	usageError,
+} from "./protocol";
+import {
 	ASSIGNMENTS_PATH,
 	commitWithRollback,
 	extractSection,
@@ -46,8 +53,22 @@ import type { Assignment, IssueFrontmatter } from "./types";
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
 export function die(msg: string): never {
-	console.error(msg);
-	process.exit(1);
+	if (msg.startsWith("Usage:")) usageError(msg);
+	if (msg.includes("already claimed")) domainError(msg, "TASK_ALREADY_CLAIMED");
+	if (msg.startsWith("Issue not found")) domainError(msg, "TASK_NOT_FOUND");
+	if (msg.startsWith("No active assignment"))
+		domainError(msg, "NO_ACTIVE_ASSIGNMENT");
+	if (msg.includes("cannot be claimed")) domainError(msg, "TASK_NOT_CLAIMABLE");
+	if (msg.startsWith("Triage status")) domainError(msg, "INVALID_STATUS");
+	if (msg.startsWith("Template not found"))
+		domainError(msg, "TEMPLATE_NOT_FOUND");
+	if (msg.startsWith("Cannot close") || msg.startsWith("Completion "))
+		domainError(msg, "COMPLETION_BLOCKED");
+	if (msg.startsWith("Unknown backend") || msg.includes("ANTHROPIC_API_KEY"))
+		operationalError(msg, "BACKEND_UNAVAILABLE");
+	if (msg.startsWith("Failed to parse AI response"))
+		operationalError(msg, "INVALID_BACKEND_RESPONSE");
+	domainError(msg);
 }
 
 export function parseFlags(args: string[]): Record<string, string> {
@@ -70,15 +91,17 @@ export async function cmdConfig(args: string[]) {
 	const subcommand = args[0];
 	if (subcommand === "path") {
 		console.log(configPath());
-		return;
+		return { path: configPath() };
 	}
 	if (subcommand === "validate") {
 		readFileConfig();
 		console.log(`Valid configuration: ${configPath()}`);
-		return;
+		return { valid: true, path: configPath() };
 	}
 	if (subcommand !== undefined) die("Usage: task config [path|validate]");
-	console.log(JSON.stringify(effectiveConfig(), null, 2));
+	const config = effectiveConfig();
+	console.log(JSON.stringify(config, null, 2));
+	return { config };
 }
 
 export function parseTemplateArg(args: string[]): {
@@ -267,9 +290,14 @@ export async function cmdLint() {
 	} else if (errors === 0) {
 		console.log(`Completed with ${warnings} warning(s).`);
 	} else {
-		console.error(`Failed: ${errors} error(s), ${warnings} warning(s).`);
-		process.exit(1);
+		throw new ProtocolError(
+			"VALIDATION_FAILED",
+			`Failed: ${errors} error(s), ${warnings} warning(s).`,
+			"domain",
+			{ errors, warnings },
+		);
 	}
+	return { errors, warnings };
 }
 
 // ── task new ──────────────────────────────────────────────────────────────────
@@ -307,6 +335,7 @@ export async function cmdNew(args: string[]) {
 
 	writeFileSync(filePath, `${serializeFrontmatter(fm)}\n${templateBody}`);
 	console.log(relPath(filePath));
+	return { task: fm, path: relPath(filePath) };
 }
 
 // ── task claim ────────────────────────────────────────────────────────────────
@@ -398,6 +427,7 @@ export async function cmdClaim(args: string[]) {
 		},
 	);
 	console.log(`Claimed '${taskId}' by '${owner}'`);
+	return { task_id: taskId, assignment: record };
 }
 
 // ── task triage ───────────────────────────────────────────────────────────────
@@ -436,6 +466,11 @@ export async function cmdTriage(args: string[]) {
 		},
 	);
 	console.log(`Triaged '${taskId}' -> '${newStatus}'`);
+	return {
+		task_id: taskId,
+		previous_status: previousStatus,
+		status: newStatus,
+	};
 }
 
 // ── task release ──────────────────────────────────────────────────────────────
@@ -480,6 +515,7 @@ export async function cmdRelease(args: string[]) {
 		await gitAdd(changedFiles);
 	});
 	console.log(`Released '${taskId}'`);
+	return { task_id: taskId, assignment: assignments[idx] };
 }
 
 // ── task close ────────────────────────────────────────────────────────────────
@@ -701,6 +737,7 @@ export async function cmdClose(args: string[]) {
 		},
 	);
 	console.log(`Closed '${taskId}' → ${relPath(newPath)}`);
+	return { task_id: taskId, status: data.status, path: relPath(newPath) };
 }
 
 // ── task doctor ───────────────────────────────────────────────────────────────
@@ -709,6 +746,7 @@ export async function cmdDoctor() {
 	const assignments = readAssignments();
 	const now = new Date();
 	let mutated = false;
+	const warnings: string[] = [];
 
 	for (const a of assignments) {
 		if (
@@ -717,7 +755,9 @@ export async function cmdDoctor() {
 			new Date(a.lease_until) < now
 		) {
 			a.status = "expired";
-			console.warn(`EXPIRED: ${a.task_id} (lease was ${a.lease_until})`);
+			const message = `EXPIRED: ${a.task_id} (lease was ${a.lease_until})`;
+			warnings.push(message);
+			console.warn(message);
 			mutated = true;
 		}
 	}
@@ -736,9 +776,9 @@ export async function cmdDoctor() {
 	for (const p of issueFiles) {
 		const { data } = readIssue(p);
 		if (data.status === "in-progress" && !activeIds.has(data.id)) {
-			console.warn(
-				`WARN: ${relPath(p)} is in-progress but has no active assignment`,
-			);
+			const message = `WARN: ${relPath(p)} is in-progress but has no active assignment`;
+			warnings.push(message);
+			console.warn(message);
 		}
 		if (data.status === "needs-triage" && !data.owner) {
 			const createdAt = new Date(String(data.created_at ?? ""));
@@ -746,9 +786,9 @@ export async function cmdDoctor() {
 				? Math.floor((now.getTime() - createdAt.getTime()) / 86_400_000)
 				: NaN;
 			if (Number.isFinite(ageDays) && ageDays > 7) {
-				console.warn(
-					`WARN: ${relPath(p)} is needs-triage for ${ageDays} days with no owner`,
-				);
+				const message = `WARN: ${relPath(p)} is needs-triage for ${ageDays} days with no owner`;
+				warnings.push(message);
+				console.warn(message);
 			}
 		}
 	}
@@ -761,9 +801,9 @@ export async function cmdDoctor() {
 	);
 	for (const a of assignments.filter((a) => a.status === "active")) {
 		if (!issueSlugs.has(a.task_id)) {
-			console.warn(
-				`WARN: active assignment for '${a.task_id}' has no issue file`,
-			);
+			const message = `WARN: active assignment for '${a.task_id}' has no issue file`;
+			warnings.push(message);
+			console.warn(message);
 		}
 	}
 
@@ -772,13 +812,14 @@ export async function cmdDoctor() {
 	const activeSection = extractSection(flow, "### Active");
 	for (const m of activeSection.matchAll(/\(id:([a-z0-9][a-z0-9-]*)\)/g)) {
 		if (!activeIds.has(m[1])) {
-			console.warn(
-				`WARN: flow.md Active entry '${m[1]}' has no active assignment`,
-			);
+			const message = `WARN: flow.md Active entry '${m[1]}' has no active assignment`;
+			warnings.push(message);
+			console.warn(message);
 		}
 	}
 
 	console.log("Doctor check complete.");
+	return { mutated, warnings };
 }
 
 // ── task render ───────────────────────────────────────────────────────────────
@@ -810,13 +851,17 @@ export async function cmdRender() {
 		agents.map(formatLine).join("\n"),
 	);
 	writeFlow(flow);
+	return {
+		active: active.length,
+		humans: humans.length,
+		agents: agents.length,
+	};
 }
 
 // ── task list ─────────────────────────────────────────────────────────────────
 
 export async function cmdList(args: string[]) {
 	const flags = parseFlags(args);
-	const jsonOutput = "json" in flags;
 
 	type IssueRow = IssueFrontmatter & { _path: string; _scope: string };
 	let issues: IssueRow[] = walkIssues().map((p) => ({
@@ -833,15 +878,11 @@ export async function cmdList(args: string[]) {
 			(i) => Array.isArray(i.tags) && i.tags.includes(flags.tag),
 		);
 
-	if (jsonOutput) {
-		const out = issues.map(({ _path, _scope, ...rest }) => rest);
-		console.log(JSON.stringify(out, null, 2));
-		return;
-	}
+	const out = issues.map(({ _path, _scope, ...rest }) => rest);
 
 	if (issues.length === 0) {
 		console.log("No issues found.");
-		return;
+		return { issues: out };
 	}
 
 	const COLS = ["id", "scope", "status", "priority", "owner", "title"] as const;
@@ -863,6 +904,7 @@ export async function cmdList(args: string[]) {
 	console.log(fmt([...COLS]));
 	console.log(widths.map((w) => "-".repeat(w)).join("  "));
 	for (const row of rows) console.log(fmt(row));
+	return { issues: out };
 }
 
 // ── AI backends ───────────────────────────────────────────────────────────────
@@ -950,7 +992,11 @@ export async function callAI(
 		});
 		if (!response.ok) {
 			const text = await response.text();
-			die(`Anthropic API error ${response.status}: ${text}`);
+			operationalError(
+				`Anthropic API error ${response.status}: ${text}`,
+				"BACKEND_UNAVAILABLE",
+				{ status: response.status },
+			);
 		}
 		const payload = (await response.json()) as {
 			content: { type: string; text: string }[];
@@ -994,10 +1040,7 @@ export async function cmdIngest(args: string[]) {
 	}
 
 	if (backend === "api" && !apiKey) {
-		console.error(
-			"ERROR: ANTHROPIC_API_KEY is not set (required for --backend api)",
-		);
-		process.exit(1);
+		die("ANTHROPIC_API_KEY is not set (required for --backend api)");
 	}
 
 	const flow = readFlow();
@@ -1006,7 +1049,7 @@ export async function cmdIngest(args: string[]) {
 
 	if (bullets.length === 0) {
 		console.log("Issue Scratchpad is empty.");
-		return;
+		return { issues: [], processed: 0 };
 	}
 
 	const issuesDir = join(ROOT, "issues");
@@ -1047,6 +1090,17 @@ Rules:
 		let result = await callAI(backend, SYSTEM_PROMPT, bullet, apiKey);
 
 		if (result.type === "ambiguous") {
+			if (isJsonMode())
+				usageError(
+					`Clarification required: ${result.clarification ?? "additional input is required"}`,
+					"MISSING_INPUT",
+					{
+						clarification: result.clarification ?? null,
+						uncommitted_issue_ids: newFiles.map((path) =>
+							basename(path, ".md"),
+						),
+					},
+				);
 			const answer = await prompt(
 				`Clarification needed: ${result.clarification}\n> `,
 			);
@@ -1089,4 +1143,9 @@ Rules:
 		`ingest: ${newFiles.length} issue(s) created from scratchpad`,
 	);
 	console.log(`\nIngested ${newFiles.length} issue(s).`);
+	return {
+		issues: newFiles.map(relPath),
+		processed: bullets.length,
+		backend,
+	};
 }

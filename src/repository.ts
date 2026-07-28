@@ -9,6 +9,7 @@ import {
 import { basename, isAbsolute, join, relative } from "node:path";
 import { $ } from "bun";
 import { parseFrontmatter, serializeFrontmatter } from "./frontmatter";
+import { isJsonMode } from "./protocol";
 import { ROOT } from "./runtime";
 import type { Assignment, IssueFrontmatter } from "./types";
 
@@ -223,7 +224,9 @@ export async function gitCommit(message: string): Promise<boolean> {
 		console.warn("No staged task changes; skipping commit.");
 		return false;
 	}
-	await $`git -C ${ROOT} commit -m ${message}`;
+	const commit = $`git -C ${ROOT} commit -m ${message}`;
+	if (isJsonMode()) commit.quiet();
+	await commit;
 	return true;
 }
 

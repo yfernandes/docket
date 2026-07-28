@@ -14,6 +14,7 @@ import {
 	cmdRender,
 	cmdTriage,
 } from "./commands";
+import { domainError, runCommand, usageError } from "./protocol";
 
 // ── Main dispatch ─────────────────────────────────────────────────────────────
 
@@ -49,53 +50,56 @@ Commands:
     --backend <name>        Force backend: gemini, claude, copilot, codex, api
                             (default: auto-detect from PATH, fallback to api)
     --template <name>       Use issues/templates/<name>.md (default: issue)
+
+Global options:
+  --json                    Emit one versioned JSON document (non-interactive)
 `;
 
 export async function main(args = process.argv.slice(2)): Promise<void> {
-	const [cmd, ...rest] = args;
-
-	switch (cmd) {
-		case "lint":
-			await cmdLint();
-			break;
-		case "new":
-			await cmdNew(rest);
-			break;
-		case "claim":
-			await cmdClaim(rest);
-			break;
-		case "triage":
-			await cmdTriage(rest);
-			break;
-		case "release":
-			await cmdRelease(rest);
-			break;
-		case "close":
-			await cmdClose(rest);
-			break;
-		case "config":
-			await cmdConfig(rest);
-			break;
-		case "doctor":
-			await cmdDoctor();
-			break;
-		case "render":
-			await cmdRender();
-			break;
-		case "list":
-			await cmdList(rest);
-			break;
-		case "ingest":
-			await cmdIngest(rest);
-			break;
-		case "help":
-		case undefined:
-			console.log(HELP);
-			break;
-		default:
-			console.error(`Unknown command: ${cmd}`);
-			console.log(HELP);
-			process.exit(1);
+	const json = args.includes("--json");
+	const filteredArgs = args.filter((arg) => arg !== "--json");
+	const [cmd, ...rest] = filteredArgs;
+	const command = cmd ?? "help";
+	const exitCode = await runCommand(command, json, async () => {
+		switch (cmd) {
+			case "lint":
+				return cmdLint();
+			case "new":
+				return cmdNew(rest);
+			case "claim":
+				return cmdClaim(rest);
+			case "triage":
+				return cmdTriage(rest);
+			case "release":
+				return cmdRelease(rest);
+			case "close":
+				return cmdClose(rest);
+			case "config":
+				return cmdConfig(rest);
+			case "doctor":
+				return cmdDoctor();
+			case "render":
+				return cmdRender();
+			case "list":
+				return cmdList(rest);
+			case "ingest":
+				return cmdIngest(rest);
+			case "help":
+			case undefined:
+				console.log(HELP);
+				return { help: HELP };
+			default:
+				if (!json) {
+					console.log(HELP);
+					domainError(`Unknown command: ${cmd}`);
+				}
+				usageError(`Unknown command: ${cmd}`, "INVALID_USAGE", {
+					command: cmd,
+				});
+		}
+	});
+	if (exitCode !== 0) {
+		process.exitCode = exitCode;
 	}
 }
 

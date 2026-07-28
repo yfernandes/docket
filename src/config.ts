@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { ConfigValidationError } from "./protocol";
 import { ROOT } from "./runtime";
 
 export type CompletionPolicy = "off" | "agents" | "all";
@@ -34,13 +35,13 @@ export function configPath(): string {
 
 function object(value: unknown, name: string): Record<string, unknown> {
 	if (!value || typeof value !== "object" || Array.isArray(value))
-		throw new Error(`${name} must be an object`);
+		throw new ConfigValidationError(`${name} must be an object`);
 	return value as Record<string, unknown>;
 }
 
 function policy(value: unknown, name: string): CompletionPolicy {
 	if (value !== "off" && value !== "agents" && value !== "all")
-		throw new Error(`${name} must be one of: off, agents, all`);
+		throw new ConfigValidationError(`${name} must be one of: off, agents, all`);
 	return value;
 }
 
@@ -51,33 +52,41 @@ export function readFileConfig(path = configPath()): Partial<DocketConfig> {
 	try {
 		parsed = JSON.parse(readFileSync(path, "utf-8"));
 	} catch (error) {
-		throw new Error(
+		throw new ConfigValidationError(
 			`Invalid docket.json at ${path}: ${error instanceof Error ? error.message : error}`,
+			{ cause: error },
 		);
 	}
 	const root = object(parsed, "docket.json");
 	for (const key of Object.keys(root)) {
 		if (!new Set(["version", "installation", "completion"]).has(key))
-			throw new Error(`docket.json contains unknown key '${key}'`);
+			throw new ConfigValidationError(
+				`docket.json contains unknown key '${key}'`,
+			);
 	}
-	if (root.version !== 1) throw new Error("docket.json version must be 1");
+	if (root.version !== 1)
+		throw new ConfigValidationError("docket.json version must be 1");
 	const result: Partial<DocketConfig> = { version: 1 };
 	if (root.installation !== undefined) {
 		const installation = object(root.installation, "installation");
 		for (const key of Object.keys(installation)) {
 			if (key !== "directory" && key !== "branch")
-				throw new Error(`installation contains unknown key '${key}'`);
+				throw new ConfigValidationError(
+					`installation contains unknown key '${key}'`,
+				);
 		}
 		if (
 			installation.directory !== undefined &&
 			typeof installation.directory !== "string"
 		)
-			throw new Error("installation.directory must be a string");
+			throw new ConfigValidationError(
+				"installation.directory must be a string",
+			);
 		if (
 			installation.branch !== undefined &&
 			typeof installation.branch !== "string"
 		)
-			throw new Error("installation.branch must be a string");
+			throw new ConfigValidationError("installation.branch must be a string");
 		result.installation = installation as DocketConfig["installation"];
 	}
 	if (root.completion !== undefined) {
@@ -92,7 +101,9 @@ export function readFileConfig(path = configPath()): Partial<DocketConfig> {
 					"allowOverride",
 				]).has(key)
 			)
-				throw new Error(`completion contains unknown key '${key}'`);
+				throw new ConfigValidationError(
+					`completion contains unknown key '${key}'`,
+				);
 		}
 		const policies = [
 			"acceptanceCriteria",
@@ -107,7 +118,9 @@ export function readFileConfig(path = configPath()): Partial<DocketConfig> {
 			completion.allowOverride !== undefined &&
 			typeof completion.allowOverride !== "boolean"
 		)
-			throw new Error("completion.allowOverride must be a boolean");
+			throw new ConfigValidationError(
+				"completion.allowOverride must be a boolean",
+			);
 		result.completion = completion as DocketConfig["completion"];
 	}
 	return result;

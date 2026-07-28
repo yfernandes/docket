@@ -19,6 +19,127 @@ var {$: $2 } = globalThis.Bun;
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 
+// src/protocol.ts
+var PROTOCOL_VERSION = 1;
+var EXIT_CODES = {
+  success: 0,
+  domain: 1,
+  usage: 2,
+  operational: 3
+};
+
+class ProtocolError extends Error {
+  code;
+  exitClass;
+  details;
+  constructor(code, message, exitClass, details) {
+    super(message);
+    this.code = code;
+    this.exitClass = exitClass;
+    this.details = details;
+    this.name = "ProtocolError";
+  }
+}
+
+class ConfigValidationError extends Error {
+  constructor(message, options) {
+    super(message, options);
+    this.name = "ConfigValidationError";
+  }
+}
+var jsonMode = false;
+function isJsonMode() {
+  return jsonMode;
+}
+function usageError(message, code = "INVALID_USAGE", details) {
+  throw new ProtocolError(code, message, "usage", details);
+}
+function domainError(message, code = "DOMAIN_ERROR", details) {
+  throw new ProtocolError(code, message, "domain", details);
+}
+function operationalError(message, code = "OPERATIONAL_ERROR", details) {
+  throw new ProtocolError(code, message, "operational", details);
+}
+function messageFor(value) {
+  return value instanceof Error ? value.message : String(value);
+}
+function classify(error) {
+  if (error instanceof ProtocolError)
+    return error;
+  const message = messageFor(error);
+  if (error instanceof ConfigValidationError)
+    return new ProtocolError("CONFIG_INVALID", message, "domain");
+  return new ProtocolError("OPERATIONAL_ERROR", message, "operational");
+}
+function line(value) {
+  return typeof value === "string" ? value : String(value);
+}
+async function runCommand(command, json, action) {
+  if (!json) {
+    try {
+      await action();
+      return EXIT_CODES.success;
+    } catch (error) {
+      const failure = classify(error);
+      console.error(failure.message);
+      return EXIT_CODES[failure.exitClass];
+    }
+  }
+  jsonMode = true;
+  const warnings = [];
+  const originalLog = console.log;
+  const originalWarn = console.warn;
+  const originalError = console.error;
+  const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+  const originalStderrWrite = process.stderr.write.bind(process.stderr);
+  console.log = () => {};
+  console.warn = (...values) => warnings.push(values.map(line).join(" "));
+  console.error = (...values) => warnings.push(values.map(line).join(" "));
+  process.stdout.write = () => true;
+  process.stderr.write = (chunk) => {
+    const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
+    warnings.push(...text.split(`
+`).filter(Boolean));
+    return true;
+  };
+  let document;
+  let exitCode = EXIT_CODES.success;
+  try {
+    const data = await action();
+    document = {
+      protocol_version: PROTOCOL_VERSION,
+      ok: true,
+      command,
+      data: data ?? {},
+      warnings
+    };
+  } catch (error) {
+    const failure = classify(error);
+    exitCode = EXIT_CODES[failure.exitClass];
+    document = {
+      protocol_version: PROTOCOL_VERSION,
+      ok: false,
+      command,
+      error: {
+        code: failure.code,
+        message: failure.message,
+        ...failure.details ? { details: failure.details } : {}
+      },
+      ...warnings.length > 0 ? { warnings } : {}
+    };
+  } finally {
+    console.log = originalLog;
+    console.warn = originalWarn;
+    console.error = originalError;
+    process.stdout.write = originalStdoutWrite;
+    process.stderr.write = originalStderrWrite;
+    jsonMode = false;
+  }
+  originalStdoutWrite(`${JSON.stringify(document, null, 2)}
+`);
+  return exitCode;
+}
+
 // src/runtime.ts
 import { basename, dirname } from "path";
 var ROOT = basename(import.meta.dir) === "src" ? dirname(import.meta.dir) : import.meta.dir;
@@ -40,12 +161,12 @@ function configPath() {
 }
 function object(value, name) {
   if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error(`${name} must be an object`);
+    throw new ConfigValidationError(`${name} must be an object`);
   return value;
 }
 function policy(value, name) {
   if (value !== "off" && value !== "agents" && value !== "all")
-    throw new Error(`${name} must be one of: off, agents, all`);
+    throw new ConfigValidationError(`${name} must be one of: off, agents, all`);
   return value;
 }
 function readFileConfig(path = configPath()) {
@@ -55,26 +176,26 @@ function readFileConfig(path = configPath()) {
   try {
     parsed = JSON.parse(readFileSync(path, "utf-8"));
   } catch (error) {
-    throw new Error(`Invalid docket.json at ${path}: ${error instanceof Error ? error.message : error}`);
+    throw new ConfigValidationError(`Invalid docket.json at ${path}: ${error instanceof Error ? error.message : error}`, { cause: error });
   }
   const root = object(parsed, "docket.json");
   for (const key of Object.keys(root)) {
     if (!new Set(["version", "installation", "completion"]).has(key))
-      throw new Error(`docket.json contains unknown key '${key}'`);
+      throw new ConfigValidationError(`docket.json contains unknown key '${key}'`);
   }
   if (root.version !== 1)
-    throw new Error("docket.json version must be 1");
+    throw new ConfigValidationError("docket.json version must be 1");
   const result = { version: 1 };
   if (root.installation !== undefined) {
     const installation = object(root.installation, "installation");
     for (const key of Object.keys(installation)) {
       if (key !== "directory" && key !== "branch")
-        throw new Error(`installation contains unknown key '${key}'`);
+        throw new ConfigValidationError(`installation contains unknown key '${key}'`);
     }
     if (installation.directory !== undefined && typeof installation.directory !== "string")
-      throw new Error("installation.directory must be a string");
+      throw new ConfigValidationError("installation.directory must be a string");
     if (installation.branch !== undefined && typeof installation.branch !== "string")
-      throw new Error("installation.branch must be a string");
+      throw new ConfigValidationError("installation.branch must be a string");
     result.installation = installation;
   }
   if (root.completion !== undefined) {
@@ -87,7 +208,7 @@ function readFileConfig(path = configPath()) {
         "requireActiveAssignment",
         "allowOverride"
       ]).has(key))
-        throw new Error(`completion contains unknown key '${key}'`);
+        throw new ConfigValidationError(`completion contains unknown key '${key}'`);
     }
     const policies = [
       "acceptanceCriteria",
@@ -99,7 +220,7 @@ function readFileConfig(path = configPath()) {
       if (completion[key] !== undefined)
         policy(completion[key], `completion.${key}`);
     if (completion.allowOverride !== undefined && typeof completion.allowOverride !== "boolean")
-      throw new Error("completion.allowOverride must be a boolean");
+      throw new ConfigValidationError("completion.allowOverride must be a boolean");
     result.completion = completion;
   }
   return result;
@@ -132,8 +253,8 @@ function parseFrontmatter(content) {
   const yamlLines = lines.slice(1, endIdx);
   let i = 0;
   while (i < yamlLines.length) {
-    const line = yamlLines[i];
-    const m = line.match(/^([\w_-]+)\s*:\s*(.*)/);
+    const line2 = yamlLines[i];
+    const m = line2.match(/^([\w_-]+)\s*:\s*(.*)/);
     if (!m) {
       i++;
       continue;
@@ -202,16 +323,16 @@ function parseAssignmentsYaml(content) {
 `);
   const records = [];
   let cur = null;
-  for (const line of lines) {
-    if (line.startsWith("- ")) {
+  for (const line2 of lines) {
+    if (line2.startsWith("- ")) {
       if (cur)
         records.push(toAssignment(cur));
       cur = {};
-      const m = line.slice(2).match(/^([\w_-]+)\s*:\s*(.*)/);
+      const m = line2.slice(2).match(/^([\w_-]+)\s*:\s*(.*)/);
       if (m)
         cur[m[1]] = m[2].trim() === "null" ? null : m[2].trim();
-    } else if (/^ {2}[\w_-]/.test(line) && cur) {
-      const m = line.match(/^ {2}([\w_-]+)\s*:\s*(.*)/);
+    } else if (/^ {2}[\w_-]/.test(line2) && cur) {
+      const m = line2.match(/^ {2}([\w_-]+)\s*:\s*(.*)/);
       if (m)
         cur[m[1]] = m[2].trim() === "null" ? null : m[2].trim();
     }
@@ -355,7 +476,10 @@ async function gitCommit(message) {
     console.warn("No staged task changes; skipping commit.");
     return false;
   }
-  await $`git -C ${ROOT} commit -m ${message}`;
+  const commit = $`git -C ${ROOT} commit -m ${message}`;
+  if (isJsonMode())
+    commit.quiet();
+  await commit;
   return true;
 }
 async function commitWithRollback(message, touchedPaths, mutate) {
@@ -566,8 +690,27 @@ ${withLog.slice(end)}`;
 
 // src/commands.ts
 function die2(msg) {
-  console.error(msg);
-  process.exit(1);
+  if (msg.startsWith("Usage:"))
+    usageError(msg);
+  if (msg.includes("already claimed"))
+    domainError(msg, "TASK_ALREADY_CLAIMED");
+  if (msg.startsWith("Issue not found"))
+    domainError(msg, "TASK_NOT_FOUND");
+  if (msg.startsWith("No active assignment"))
+    domainError(msg, "NO_ACTIVE_ASSIGNMENT");
+  if (msg.includes("cannot be claimed"))
+    domainError(msg, "TASK_NOT_CLAIMABLE");
+  if (msg.startsWith("Triage status"))
+    domainError(msg, "INVALID_STATUS");
+  if (msg.startsWith("Template not found"))
+    domainError(msg, "TEMPLATE_NOT_FOUND");
+  if (msg.startsWith("Cannot close") || msg.startsWith("Completion "))
+    domainError(msg, "COMPLETION_BLOCKED");
+  if (msg.startsWith("Unknown backend") || msg.includes("ANTHROPIC_API_KEY"))
+    operationalError(msg, "BACKEND_UNAVAILABLE");
+  if (msg.startsWith("Failed to parse AI response"))
+    operationalError(msg, "INVALID_BACKEND_RESPONSE");
+  domainError(msg);
 }
 function parseFlags(args) {
   const flags = {};
@@ -588,16 +731,18 @@ async function cmdConfig(args) {
   const subcommand = args[0];
   if (subcommand === "path") {
     console.log(configPath());
-    return;
+    return { path: configPath() };
   }
   if (subcommand === "validate") {
     readFileConfig();
     console.log(`Valid configuration: ${configPath()}`);
-    return;
+    return { valid: true, path: configPath() };
   }
   if (subcommand !== undefined)
     die2("Usage: task config [path|validate]");
-  console.log(JSON.stringify(effectiveConfig(), null, 2));
+  const config = effectiveConfig();
+  console.log(JSON.stringify(config, null, 2));
+  return { config };
 }
 function parseTemplateArg(args) {
   const positional = [];
@@ -757,9 +902,9 @@ async function cmdLint() {
   } else if (errors === 0) {
     console.log(`Completed with ${warnings} warning(s).`);
   } else {
-    console.error(`Failed: ${errors} error(s), ${warnings} warning(s).`);
-    process.exit(1);
+    throw new ProtocolError("VALIDATION_FAILED", `Failed: ${errors} error(s), ${warnings} warning(s).`, "domain", { errors, warnings });
   }
+  return { errors, warnings };
 }
 async function cmdNew(args) {
   const { templateName, positional } = parseTemplateArg(args);
@@ -792,6 +937,7 @@ async function cmdNew(args) {
   writeFileSync2(filePath, `${serializeFrontmatter(fm)}
 ${templateBody}`);
   console.log(relPath(filePath));
+  return { task: fm, path: relPath(filePath) };
 }
 async function cmdClaim(args) {
   const taskId = args[0];
@@ -857,6 +1003,7 @@ async function cmdClaim(args) {
     await gitAdd(changedFiles);
   });
   console.log(`Claimed '${taskId}' by '${owner}'`);
+  return { task_id: taskId, assignment: record };
 }
 async function cmdTriage(args) {
   const taskId = args[0];
@@ -884,6 +1031,11 @@ async function cmdTriage(args) {
     await gitAdd([issuePath]);
   });
   console.log(`Triaged '${taskId}' -> '${newStatus}'`);
+  return {
+    task_id: taskId,
+    previous_status: previousStatus,
+    status: newStatus
+  };
 }
 async function cmdRelease(args) {
   const taskId = args[0];
@@ -917,6 +1069,7 @@ async function cmdRelease(args) {
     await gitAdd(changedFiles);
   });
   console.log(`Released '${taskId}'`);
+  return { task_id: taskId, assignment: assignments[idx] };
 }
 function acceptanceFailures(body) {
   const heading = /^## Acceptance Criteria\s*$/m.exec(body);
@@ -1052,15 +1205,19 @@ async function cmdClose(args) {
       await gitAdd([ASSIGNMENTS_PATH]);
   });
   console.log(`Closed '${taskId}' \u2192 ${relPath(newPath)}`);
+  return { task_id: taskId, status: data.status, path: relPath(newPath) };
 }
 async function cmdDoctor() {
   const assignments = readAssignments();
   const now = new Date;
   let mutated = false;
+  const warnings = [];
   for (const a of assignments) {
     if (a.status === "active" && a.lease_until && new Date(a.lease_until) < now) {
       a.status = "expired";
-      console.warn(`EXPIRED: ${a.task_id} (lease was ${a.lease_until})`);
+      const message = `EXPIRED: ${a.task_id} (lease was ${a.lease_until})`;
+      warnings.push(message);
+      console.warn(message);
       mutated = true;
     }
   }
@@ -1073,30 +1230,39 @@ async function cmdDoctor() {
   for (const p of issueFiles) {
     const { data } = readIssue(p);
     if (data.status === "in-progress" && !activeIds.has(data.id)) {
-      console.warn(`WARN: ${relPath(p)} is in-progress but has no active assignment`);
+      const message = `WARN: ${relPath(p)} is in-progress but has no active assignment`;
+      warnings.push(message);
+      console.warn(message);
     }
     if (data.status === "needs-triage" && !data.owner) {
       const createdAt = new Date(String(data.created_at ?? ""));
       const ageDays = Number.isFinite(createdAt.getTime()) ? Math.floor((now.getTime() - createdAt.getTime()) / 86400000) : NaN;
       if (Number.isFinite(ageDays) && ageDays > 7) {
-        console.warn(`WARN: ${relPath(p)} is needs-triage for ${ageDays} days with no owner`);
+        const message = `WARN: ${relPath(p)} is needs-triage for ${ageDays} days with no owner`;
+        warnings.push(message);
+        console.warn(message);
       }
     }
   }
   const issueSlugs = new Set(issueFiles.map((p) => basename3(p, ".md").replace(/^\d{4}-\d{2}-\d{2}-/, "")));
   for (const a of assignments.filter((a2) => a2.status === "active")) {
     if (!issueSlugs.has(a.task_id)) {
-      console.warn(`WARN: active assignment for '${a.task_id}' has no issue file`);
+      const message = `WARN: active assignment for '${a.task_id}' has no issue file`;
+      warnings.push(message);
+      console.warn(message);
     }
   }
   const flow = readFlow();
   const activeSection = extractSection(flow, "### Active");
   for (const m of activeSection.matchAll(/\(id:([a-z0-9][a-z0-9-]*)\)/g)) {
     if (!activeIds.has(m[1])) {
-      console.warn(`WARN: flow.md Active entry '${m[1]}' has no active assignment`);
+      const message = `WARN: flow.md Active entry '${m[1]}' has no active assignment`;
+      warnings.push(message);
+      console.warn(message);
     }
   }
   console.log("Doctor check complete.");
+  return { mutated, warnings };
 }
 async function cmdRender() {
   const assignments = readAssignments();
@@ -1121,10 +1287,14 @@ async function cmdRender() {
   flow = replaceSection(flow, "## Agent Queue", agents.map(formatLine).join(`
 `));
   writeFlow(flow);
+  return {
+    active: active.length,
+    humans: humans.length,
+    agents: agents.length
+  };
 }
 async function cmdList(args) {
   const flags = parseFlags(args);
-  const jsonOutput = "json" in flags;
   let issues = walkIssues().map((p) => ({
     ...readIssue(p).data,
     _path: p,
@@ -1138,14 +1308,10 @@ async function cmdList(args) {
     issues = issues.filter((i) => i.owner === flags.owner);
   if (flags.tag)
     issues = issues.filter((i) => Array.isArray(i.tags) && i.tags.includes(flags.tag));
-  if (jsonOutput) {
-    const out = issues.map(({ _path, _scope, ...rest }) => rest);
-    console.log(JSON.stringify(out, null, 2));
-    return;
-  }
+  const out = issues.map(({ _path, _scope, ...rest }) => rest);
   if (issues.length === 0) {
     console.log("No issues found.");
-    return;
+    return { issues: out };
   }
   const COLS = ["id", "scope", "status", "priority", "owner", "title"];
   const rows = issues.map((i) => [
@@ -1162,6 +1328,7 @@ async function cmdList(args) {
   console.log(widths.map((w) => "-".repeat(w)).join("  "));
   for (const row of rows)
     console.log(fmt(row));
+  return { issues: out };
 }
 var CLI_BACKENDS = {
   gemini: {
@@ -1222,7 +1389,7 @@ async function callAI(backend, systemPrompt, userMessage, apiKey) {
     });
     if (!response.ok) {
       const text = await response.text();
-      die2(`Anthropic API error ${response.status}: ${text}`);
+      operationalError(`Anthropic API error ${response.status}: ${text}`, "BACKEND_UNAVAILABLE", { status: response.status });
     }
     const payload = await response.json();
     raw = payload.content.find((c) => c.type === "text")?.text ?? "{}";
@@ -1257,8 +1424,7 @@ async function cmdIngest(args) {
     console.log(`Using backend: ${backend}`);
   }
   if (backend === "api" && !apiKey) {
-    console.error("ERROR: ANTHROPIC_API_KEY is not set (required for --backend api)");
-    process.exit(1);
+    die2("ANTHROPIC_API_KEY is not set (required for --backend api)");
   }
   const flow = readFlow();
   const scratchpad = extractSection(flow, "## Issue Scratchpad");
@@ -1266,7 +1432,7 @@ async function cmdIngest(args) {
 `).filter((l) => /^\s*[-*]/.test(l));
   if (bullets.length === 0) {
     console.log("Issue Scratchpad is empty.");
-    return;
+    return { issues: [], processed: 0 };
   }
   const issuesDir = join3(ROOT, "issues");
   const scopes = existsSync3(issuesDir) ? readdirSync2(issuesDir).filter((e) => statSync2(join3(issuesDir, e)).isDirectory() && e !== "templates") : [];
@@ -1299,6 +1465,11 @@ Rules:
 Processing: ${bullet.trim()}`);
     let result = await callAI(backend, SYSTEM_PROMPT, bullet, apiKey);
     if (result.type === "ambiguous") {
+      if (isJsonMode())
+        usageError(`Clarification required: ${result.clarification ?? "additional input is required"}`, "MISSING_INPUT", {
+          clarification: result.clarification ?? null,
+          uncommitted_issue_ids: newFiles.map((path) => basename3(path, ".md"))
+        });
       const answer = await prompt(`Clarification needed: ${result.clarification}
 > `);
       result = await callAI(backend, SYSTEM_PROMPT, `${bullet}
@@ -1326,6 +1497,11 @@ Clarification: ${answer}`, apiKey);
   await gitCommit(`ingest: ${newFiles.length} issue(s) created from scratchpad`);
   console.log(`
 Ingested ${newFiles.length} issue(s).`);
+  return {
+    issues: newFiles.map(relPath),
+    processed: bullets.length,
+    backend
+  };
 }
 
 // src/cli.ts
@@ -1361,51 +1537,55 @@ Commands:
     --backend <name>        Force backend: gemini, claude, copilot, codex, api
                             (default: auto-detect from PATH, fallback to api)
     --template <name>       Use issues/templates/<name>.md (default: issue)
+
+Global options:
+  --json                    Emit one versioned JSON document (non-interactive)
 `;
 async function main(args = process.argv.slice(2)) {
-  const [cmd, ...rest] = args;
-  switch (cmd) {
-    case "lint":
-      await cmdLint();
-      break;
-    case "new":
-      await cmdNew(rest);
-      break;
-    case "claim":
-      await cmdClaim(rest);
-      break;
-    case "triage":
-      await cmdTriage(rest);
-      break;
-    case "release":
-      await cmdRelease(rest);
-      break;
-    case "close":
-      await cmdClose(rest);
-      break;
-    case "config":
-      await cmdConfig(rest);
-      break;
-    case "doctor":
-      await cmdDoctor();
-      break;
-    case "render":
-      await cmdRender();
-      break;
-    case "list":
-      await cmdList(rest);
-      break;
-    case "ingest":
-      await cmdIngest(rest);
-      break;
-    case "help":
-    case undefined:
-      console.log(HELP);
-      break;
-    default:
-      console.error(`Unknown command: ${cmd}`);
-      console.log(HELP);
-      process.exit(1);
+  const json = args.includes("--json");
+  const filteredArgs = args.filter((arg) => arg !== "--json");
+  const [cmd, ...rest] = filteredArgs;
+  const command = cmd ?? "help";
+  const exitCode = await runCommand(command, json, async () => {
+    switch (cmd) {
+      case "lint":
+        return cmdLint();
+      case "new":
+        return cmdNew(rest);
+      case "claim":
+        return cmdClaim(rest);
+      case "triage":
+        return cmdTriage(rest);
+      case "release":
+        return cmdRelease(rest);
+      case "close":
+        return cmdClose(rest);
+      case "config":
+        return cmdConfig(rest);
+      case "doctor":
+        return cmdDoctor();
+      case "render":
+        return cmdRender();
+      case "list":
+        return cmdList(rest);
+      case "ingest":
+        return cmdIngest(rest);
+      case "help":
+      case undefined:
+        console.log(HELP);
+        return { help: HELP };
+      default:
+        if (!json) {
+          console.log(HELP);
+          domainError(`Unknown command: ${cmd}`);
+        }
+        usageError(`Unknown command: ${cmd}`, "INVALID_USAGE", {
+          command: cmd
+        });
+    }
+  });
+  if (exitCode !== 0) {
+    process.exitCode = exitCode;
   }
 }
 if (import.meta.path === Bun.main) {
