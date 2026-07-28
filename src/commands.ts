@@ -1327,10 +1327,9 @@ export async function cmdRender() {
 
 // ── task list ─────────────────────────────────────────────────────────────────
 
-export async function cmdList(args: string[]) {
-	const flags = parseFlags(args);
+export type IssueRow = IssueFrontmatter & { _path: string; _scope: string };
 
-	type IssueRow = IssueFrontmatter & { _path: string; _scope: string };
+export function filteredIssues(flags: Record<string, string>): IssueRow[] {
 	let issues: IssueRow[] = walkIssues().map((p) => ({
 		...readIssue(p).data,
 		_path: p,
@@ -1344,8 +1343,30 @@ export async function cmdList(args: string[]) {
 		issues = issues.filter(
 			(i) => Array.isArray(i.tags) && i.tags.includes(flags.tag),
 		);
+	return issues;
+}
 
-	const out = issues.map(({ _path, _scope, ...rest }) => rest);
+export function compareIssues(left: IssueRow, right: IssueRow): number {
+	const priority = { P1: 1, P2: 2, P3: 3, P4: 4 } as const;
+	const priorityOrder = priority[left.priority] - priority[right.priority];
+	if (priorityOrder !== 0) return priorityOrder;
+
+	const creationOrder = left.created_at.localeCompare(right.created_at);
+	if (creationOrder !== 0) return creationOrder;
+
+	return left.id.localeCompare(right.id);
+}
+
+function publicIssue(issue: IssueRow): IssueFrontmatter {
+	const { _path, _scope, ...task } = issue;
+	return task;
+}
+
+export async function cmdList(args: string[]) {
+	const flags = parseFlags(args);
+	const issues = filteredIssues(flags);
+
+	const out = issues.map(publicIssue);
 
 	if (issues.length === 0) {
 		console.log("No issues found.");
@@ -1372,6 +1393,22 @@ export async function cmdList(args: string[]) {
 	console.log(widths.map((w) => "-".repeat(w)).join("  "));
 	for (const row of rows) console.log(fmt(row));
 	return { issues: out };
+}
+
+// ── task next ─────────────────────────────────────────────────────────────────
+
+export async function cmdNext(args: string[]) {
+	const flags = parseFlags(args);
+	const issues = filteredIssues({ status: "ready-for-agent", ...flags });
+	const task = issues.toSorted(compareIssues)[0];
+
+	if (!task) {
+		console.log("No tasks available.");
+		return { task: null };
+	}
+
+	console.log(`Next task: ${task.id} — ${task.title ?? task.id}`);
+	return { task: publicIssue(task) };
 }
 
 // ── task show ────────────────────────────────────────────────────────────────

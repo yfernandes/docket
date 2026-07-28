@@ -11,6 +11,7 @@ import {
 	cmdLint,
 	cmdList,
 	cmdNew,
+	cmdNext,
 	cmdNote,
 	cmdRelease,
 	cmdRender,
@@ -50,6 +51,12 @@ Commands:
   render                    Rebuild flow.md Active / Agent Queue
   list                      List issues (filterable)
     --status <s>            Filter by status
+    --scope <s>             Filter by scope
+    --owner <s>             Filter by owner
+    --tag <t>               Filter by tag
+    --json                  JSON output
+  next                      Select the next available task (read-only)
+    --status <s>            Filter by status (default: ready-for-agent)
     --scope <s>             Filter by scope
     --owner <s>             Filter by owner
     --tag <t>               Filter by tag
@@ -105,6 +112,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 				return cmdRender();
 			case "list":
 				return cmdList(rest);
+			case "next":
+				return cmdNext(rest);
 			case "show":
 				return cmdShow(rest);
 			case "note":

@@ -577,6 +577,102 @@ closed_at: null
 	});
 });
 
+describe("deterministic next task selection", () => {
+	for (const entrypoint of ["source", "bundled"] as const) {
+		test(`${entrypoint} selects the same highest-priority oldest task regardless of issue creation order`, () => {
+			withFixture((fixture) => {
+				const issues = join(fixture, "issues");
+				const task = (id: string, priority: string, createdAt: string) => `---
+id: ${id}
+title: ${id}
+status: ready-for-agent
+priority: ${priority}
+owner: codex
+owner_type: agent
+agent_id: codex
+tags: [automation, selected]
+created_at: ${createdAt}
+closed_at: null
+---
+`;
+				mkdirSync(join(issues, "z-last"), { recursive: true });
+				mkdirSync(join(issues, "a-first"), { recursive: true });
+				writeFileSync(
+					join(issues, "z-last", "later-p1.md"),
+					task("later-p1", "P1", "2026-07-02"),
+				);
+				writeFileSync(
+					join(issues, "a-first", "older-p1-b.md"),
+					task("older-p1-b", "P1", "2026-07-01"),
+				);
+				writeFileSync(
+					join(issues, "z-last", "older-p1-a.md"),
+					task("older-p1-a", "P1", "2026-07-01"),
+				);
+				writeFileSync(
+					join(issues, "a-first", "oldest-p2.md"),
+					task("oldest-p2", "P2", "2020-01-01"),
+				);
+
+				const beforeIssue = readFileSync(
+					join(issues, "z-last", "older-p1-a.md"),
+					"utf-8",
+				);
+				const beforeAssignments = readFileSync(
+					join(fixture, "assignments.yaml"),
+					"utf-8",
+				);
+				const result = run(fixture, entrypoint, ["next", "--json"]);
+				expect(result.exitCode).toBe(0);
+				expect(jsonResult(result).data.task).toMatchObject({
+					id: "older-p1-a",
+					priority: "P1",
+				});
+				expect(
+					readFileSync(join(issues, "z-last", "older-p1-a.md"), "utf-8"),
+				).toBe(beforeIssue);
+				expect(readFileSync(join(fixture, "assignments.yaml"), "utf-8")).toBe(
+					beforeAssignments,
+				);
+			});
+		});
+
+		test(`${entrypoint} shares list filters and reports an empty selection successfully`, () => {
+			withFixture((fixture) => {
+				const filtered = run(fixture, entrypoint, [
+					"next",
+					"--status",
+					"open",
+					"--scope",
+					"automation",
+					"--owner",
+					"human",
+					"--tag",
+					"automation",
+					"--json",
+				]);
+				expect(filtered.exitCode).toBe(0);
+				expect(jsonResult(filtered).data.task).toMatchObject({
+					id: "legacy-task",
+				});
+
+				const empty = run(fixture, entrypoint, [
+					"next",
+					"--tag",
+					"no-match",
+					"--json",
+				]);
+				expect(empty.exitCode).toBe(0);
+				expect(jsonResult(empty).data.task).toBeNull();
+
+				const human = run(fixture, entrypoint, ["next", "--tag", "no-match"]);
+				expect(human.exitCode).toBe(0);
+				expect(human.stdout).toBe("No tasks available.\n");
+			});
+		});
+	}
+});
+
 describe("notes and lifecycle history", () => {
 	for (const entrypoint of ["source", "bundled"] as const) {
 		test(`${entrypoint} appends human and multiline agent notes`, () => {

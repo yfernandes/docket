@@ -1696,8 +1696,7 @@ async function cmdRender() {
     agents: agents.length
   };
 }
-async function cmdList(args) {
-  const flags = parseFlags(args);
+function filteredIssues(flags) {
   let issues = walkIssues().map((p) => ({
     ...readIssue(p).data,
     _path: p,
@@ -1711,7 +1710,26 @@ async function cmdList(args) {
     issues = issues.filter((i) => i.owner === flags.owner);
   if (flags.tag)
     issues = issues.filter((i) => Array.isArray(i.tags) && i.tags.includes(flags.tag));
-  const out = issues.map(({ _path, _scope, ...rest }) => rest);
+  return issues;
+}
+function compareIssues(left, right) {
+  const priority = { P1: 1, P2: 2, P3: 3, P4: 4 };
+  const priorityOrder = priority[left.priority] - priority[right.priority];
+  if (priorityOrder !== 0)
+    return priorityOrder;
+  const creationOrder = left.created_at.localeCompare(right.created_at);
+  if (creationOrder !== 0)
+    return creationOrder;
+  return left.id.localeCompare(right.id);
+}
+function publicIssue(issue) {
+  const { _path, _scope, ...task } = issue;
+  return task;
+}
+async function cmdList(args) {
+  const flags = parseFlags(args);
+  const issues = filteredIssues(flags);
+  const out = issues.map(publicIssue);
   if (issues.length === 0) {
     console.log("No issues found.");
     return { issues: out };
@@ -1732,6 +1750,17 @@ async function cmdList(args) {
   for (const row of rows)
     console.log(fmt(row));
   return { issues: out };
+}
+async function cmdNext(args) {
+  const flags = parseFlags(args);
+  const issues = filteredIssues({ status: "ready-for-agent", ...flags });
+  const task = issues.toSorted(compareIssues)[0];
+  if (!task) {
+    console.log("No tasks available.");
+    return { task: null };
+  }
+  console.log(`Next task: ${task.id} \u2014 ${task.title ?? task.id}`);
+  return { task: publicIssue(task) };
 }
 async function cmdShow(args) {
   const taskId = args[0];
@@ -2004,6 +2033,12 @@ Commands:
     --owner <s>             Filter by owner
     --tag <t>               Filter by tag
     --json                  JSON output
+  next                      Select the next available task (read-only)
+    --status <s>            Filter by status (default: ready-for-agent)
+    --scope <s>             Filter by scope
+    --owner <s>             Filter by owner
+    --tag <t>               Filter by tag
+    --json                  JSON output
   show <task-id>            Show complete task context
     --json                  JSON output
   note <task-id> [text]     Append a durable implementation note
@@ -2054,6 +2089,8 @@ async function main(args = process.argv.slice(2)) {
         return cmdRender();
       case "list":
         return cmdList(rest);
+      case "next":
+        return cmdNext(rest);
       case "show":
         return cmdShow(rest);
       case "note":
