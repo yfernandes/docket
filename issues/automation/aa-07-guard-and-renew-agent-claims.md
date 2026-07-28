@@ -1,11 +1,11 @@
 ---
 id: aa-07-guard-and-renew-agent-claims
 title: AA-07 Guard and renew agent claims
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex-aa07
+owner_type: agent
+agent_id: codex-aa07
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -59,5 +59,8 @@ Do not add role slots, participant outcomes, deterministic selection, or local a
 
 - 2026-07-28T06:00:02.910Z — task triaged needs-triage -> ready-for-agent
 <!-- docket:event id=triage-2026-07-28T06:00:02.910Z -->
+
+- 2026-07-28T06:00:02.949Z — codex-aa07 claimed task
+<!-- docket:event id=claim-2026-07-28T06:00:02.949Z -->
 
 <!-- docket:task-log:end -->
