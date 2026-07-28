@@ -30,11 +30,11 @@ from the current `HEAD` instead of an orphan branch.
 
 ## Acceptance Criteria
 
-- [ ] `scripts/setup.sh --regular-branch` creates the configured worktree branch
+- [x] `scripts/setup.sh --regular-branch` creates the configured worktree branch
       from the host repository's current `HEAD`.
-- [ ] Omitting the flag still creates an orphan branch.
-- [ ] `--help` and setup documentation describe the new mode.
-- [ ] Automated tests cover both branch ancestry modes.
+- [x] Omitting the flag still creates an orphan branch.
+- [x] `--help` and setup documentation describe the new mode.
+- [x] Automated tests cover both branch ancestry modes.
 
 ## References
 
@@ -47,6 +47,9 @@ from the current `HEAD` instead of an orphan branch.
 <!-- docket:task-log:start -->
 
 ### Commits
+
+- `9ffedc85c226` feat(setup): support regular worktree branches
+<!-- docket:commit hash=9ffedc85c226a80d6e88e0ff18df8e9637b79dd8 -->
 
 ### Implementation Notes
 
