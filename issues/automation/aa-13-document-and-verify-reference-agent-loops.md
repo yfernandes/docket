@@ -1,11 +1,11 @@
 ---
 id: aa-13-document-and-verify-reference-agent-loops
 title: AA-13 Document and verify reference agent loops
-status: open
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex-aa13-close
+owner_type: agent
+agent_id: codex-aa13-close
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -99,5 +99,8 @@ Reconciliation: guarded close still fails after AA-15 because feature commit da6
 
 - 2026-07-28T07:24:14.485Z — codex-reconcile released task
 <!-- docket:event id=release-2026-07-28T07:24:14.485Z -->
+
+- 2026-07-28T07:25:49.798Z — codex-aa13-close claimed task
+<!-- docket:event id=claim-2026-07-28T07:25:49.798Z -->
 
 <!-- docket:task-log:end -->
