@@ -1,7 +1,7 @@
 ---
 id: aa-08-select-the-next-task-deterministically
 title: AA-08 Select the next task deterministically
-status: needs-triage
+status: ready-for-agent
 priority: P2
 owner: human
 owner_type: human
@@ -45,3 +45,18 @@ Do not claim the selected task, implement filesystem locking, or calculate crew 
 
 - `docs/agent-automation-plan.md#next`
 - `docs/agent-automation-plan.md#aa-08--deterministic-next`
+
+## Task Log
+
+<!-- docket:task-log:start -->
+
+### Commits
+
+### Implementation Notes
+
+### History
+
+- 2026-07-28T06:05:24.195Z — task triaged needs-triage -> ready-for-agent
+<!-- docket:event id=triage-2026-07-28T06:05:24.195Z -->
+
+<!-- docket:task-log:end -->
