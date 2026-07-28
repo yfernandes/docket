@@ -15,7 +15,7 @@ for all mutations — see `skills/README.md` for agent usage.
 ├── RULES.md
 ├── STRUCTURE.md
 ├── scripts/
-│   ├── setup.sh                ← curlable orphan-worktree installer
+│   ├── setup.sh                ← curlable worktree installer
 │   └── update.sh               ← curlable safe updater
 ├── skills/
 │   ├── README.md               ← agent skill index
@@ -88,7 +88,9 @@ Template not found: issues/templates/<name>.md
 ## Git worktree mode
 
 In installed projects, this directory usually lives at `./tasks/` as an orphan
-git worktree on a separate `tasks` branch. The repo root tracks only a symlink:
+git worktree on a separate `tasks` branch. Pass `--regular-branch` to the setup
+script to base that branch on the current `HEAD` instead. The repo root tracks
+only a symlink:
 
 ```text
 task -> tasks/task

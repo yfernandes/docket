@@ -36,6 +36,16 @@ copies the distro-managed docket files, creates the root `./task` symlink,
 adds `tasks/` to `.gitignore`, and commits the initial task system on the
 `tasks` branch.
 
+To create the `tasks` branch from the current branch's `HEAD` instead of as an
+orphan branch, pass `--regular-branch`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yfernandes/docket/refs/heads/main/scripts/setup.sh | bash -s -- --regular-branch
+```
+
+The resulting branch shares the host repository's history, but its worktree
+contains only the Docket files. The default remains an orphan branch.
+
 ---
 
 ## Manual setup

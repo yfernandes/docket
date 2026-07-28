@@ -114,6 +114,10 @@ while letting humans and agents use the short `./task ...` command everywhere.
 only docket-managed paths from the task worktree. If git staging or commit
 fails, the CLI restores the touched task files before surfacing the error.
 
+Pass `--regular-branch` to `scripts/setup.sh` when the Docket branch should
+start from the current branch's `HEAD` and share its history. Its worktree still
+contains only Docket files; orphan mode remains the default.
+
 ## Completion policies
 
 `docket.json` can require acceptance criteria, active assignments, clean

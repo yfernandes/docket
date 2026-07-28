@@ -11,6 +11,7 @@ DOCKET_BRANCH="${DOCKET_BRANCH:-tasks}"
 DOCKET_CONFIG=""
 
 YES=0
+REGULAR_BRANCH=0
 while [ "$#" -gt 0 ]; do
 	arg="$1"
 	case "$arg" in
@@ -19,9 +20,14 @@ while [ "$#" -gt 0 ]; do
 			;;
 		-h|--help)
 			cat <<'EOF'
-Usage: setup.sh [--yes] [--dir <directory>] [--branch <branch>] [--config <path>]
+Usage: setup.sh [--yes] [--regular-branch] [--dir <directory>] [--branch <branch>] [--config <path>]
 
-Install docket into the current git repository as an orphan worktree.
+Install docket into the current git repository as a separate worktree.
+
+Options:
+  --regular-branch
+                 Create the worktree branch from the current HEAD instead of
+                 creating an orphan branch
 
 Environment:
   DOCKET_REPO     GitHub repo to install from (default: yfernandes/docket)
@@ -32,6 +38,9 @@ Environment:
   DOCKET_BRANCH   Worktree branch name (default: tasks)
 EOF
 			exit 0
+			;;
+		--regular-branch)
+			REGULAR_BRANCH=1
 			;;
 		--dir)
 			[ "$#" -gt 1 ] || { echo "--dir requires a value" >&2; exit 2; }
@@ -130,8 +139,13 @@ fi
 echo "Downloading $archive_url"
 curl -fsSL "$archive_url" | tar -xz -C "$tmpdir" --strip-components=1
 
-echo "Creating orphan worktree $DOCKET_DIR on branch $DOCKET_BRANCH"
-git worktree add --orphan -b "$DOCKET_BRANCH" "$DOCKET_DIR"
+if [ "$REGULAR_BRANCH" -eq 1 ]; then
+	echo "Creating regular worktree $DOCKET_DIR on branch $DOCKET_BRANCH"
+	git worktree add --no-checkout -b "$DOCKET_BRANCH" "$DOCKET_DIR"
+else
+	echo "Creating orphan worktree $DOCKET_DIR on branch $DOCKET_BRANCH"
+	git worktree add --orphan -b "$DOCKET_BRANCH" "$DOCKET_DIR"
+fi
 
 copy_path() {
 	src="$1"
