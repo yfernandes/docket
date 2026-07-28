@@ -38,12 +38,12 @@ installation opts in.
 
 ## Acceptance Criteria
 
-- [ ] `completion.allowSelfHostedCommitEvidence` is parsed and documented, with a false default.
-- [ ] Commit evidence from Docket’s root is rejected by default and accepted only after explicit opt-in.
-- [ ] Lifecycle/state commits are rejected even with self-hosted evidence enabled.
-- [ ] Separate application-worktree validation remains unchanged.
-- [ ] Source and generated-bundle tests cover default rejection, opt-in acceptance, and lifecycle-commit rejection.
-- [ ] This repository’s `docket.json` enables the opt-in policy and full repository verification passes.
+- [x] `completion.allowSelfHostedCommitEvidence` is parsed and documented, with a false default.
+- [x] Commit evidence from Docket’s root is rejected by default and accepted only after explicit opt-in.
+- [x] Lifecycle/state commits are rejected even with self-hosted evidence enabled.
+- [x] Separate application-worktree validation remains unchanged.
+- [x] Source and generated-bundle tests cover default rejection, opt-in acceptance, and lifecycle-commit rejection.
+- [x] This repository’s `docket.json` enables the opt-in policy and full repository verification passes.
 
 ## Task Log
 
@@ -52,6 +52,12 @@ installation opts in.
 ### Commits
 
 ### Implementation Notes
+
+#### 2026-07-28 07:04 UTC — review — codex-aa14
+
+<!-- docket:note id=note-2026-07-28T07:04:14.173Z kind=review -->
+
+Scoped manual review completed: inspected config parsing, canonical-root enforcement, lifecycle filtering, documentation, generated bundle, and source/bundle tests. Hunk skipped for the coordinator-authorized unattended run. Verification: bun run build; bun test (92 pass); bun run check (pass with existing Biome schema/deprecation infos); task config validate; task lint; task doctor; git diff --check.
 
 ### History
 
