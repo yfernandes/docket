@@ -22,16 +22,16 @@ A JSON invocation must be non-interactive and emit exactly one JSON document to 
 
 ## Acceptance Criteria
 
-- [ ] Every existing command accepts `--json`.
-- [ ] Success and error responses include `protocol_version`, `ok`, and `command`.
-- [ ] Domain, usage, and operational failures map to the documented exit classes.
-- [ ] JSON stdout contains one parseable document with no progress chatter or color codes.
-- [ ] Warnings are structured or written to stderr.
-- [ ] Empty list or selection-shaped results exit successfully.
-- [ ] `--json` never changes claim ownership or other domain semantics.
-- [ ] Commands that would prompt return structured missing-input errors in JSON mode.
-- [ ] Existing human output remains covered by compatibility tests.
-- [ ] Source and bundle protocol tests pass.
+- [x] Every existing command accepts `--json`.
+- [x] Success and error responses include `protocol_version`, `ok`, and `command`.
+- [x] Domain, usage, and operational failures map to the documented exit classes.
+- [x] JSON stdout contains one parseable document with no progress chatter or color codes.
+- [x] Warnings are structured or written to stderr.
+- [x] Empty list or selection-shaped results exit successfully.
+- [x] `--json` never changes claim ownership or other domain semantics.
+- [x] Commands that would prompt return structured missing-input errors in JSON mode.
+- [x] Existing human output remains covered by compatibility tests.
+- [x] Source and bundle protocol tests pass.
 
 ## Blocked by
 
@@ -51,6 +51,9 @@ Do not add `show`, `next`, `take`, claim IDs, or crew behavior. This task establ
 <!-- docket:task-log:start -->
 
 ### Commits
+
+- `686f88e1e845` feat(aa-03): add versioned --json protocol to every command
+<!-- docket:commit hash=686f88e1e845979ea743c4343be2684e4da0c4c5 -->
 
 ### Implementation Notes
 
