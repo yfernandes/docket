@@ -467,7 +467,7 @@
   lease_until: 2026-07-28T14:46:32.804Z
   released_at: 2026-07-28T12:48:24.553Z
 - task_id: add-side-by-side-bun-installers
-  status: active
+  status: released
   owner: codex
   owner_type: agent
   agent_id: codex
@@ -477,4 +477,4 @@
   base_commit: 72ad338412b6e4207fccc67c4edbd4e01f4fd669
   claimed_at: 2026-07-28T12:53:16.528Z
   lease_until: 2026-07-28T14:53:16.520Z
-  released_at: null
+  released_at: 2026-07-28T12:53:40.711Z

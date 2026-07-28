@@ -1,14 +1,14 @@
 ---
 id: add-side-by-side-bun-installers
 title: Add side-by-side Bun installers
-status: in-progress
+status: done
 priority: P2
 owner: codex
 owner_type: agent
 agent_id: codex
 tags: [libs]
 created_at: 2026-07-28
-closed_at: null
+closed_at: 2026-07-28
 ---
 
 ## Context
@@ -31,11 +31,11 @@ of their Bash counterparts while leaving the existing scripts unchanged.
 
 ## Acceptance Criteria
 
-- [ ] A Bun setup entrypoint supports the Bash setup flags and environment.
-- [ ] A Bun update entrypoint preserves managed files and user fixtures.
-- [ ] Shared implementation details are testable without invoking remote services.
-- [ ] Integration tests exercise orphan setup, regular setup, and update.
-- [ ] Existing Bash scripts and documented commands remain the supported default.
+- [x] A Bun setup entrypoint supports the Bash setup flags and environment.
+- [x] A Bun update entrypoint preserves managed files and user fixtures.
+- [x] Shared implementation details are testable without invoking remote services.
+- [x] Integration tests exercise orphan setup, regular setup, and update.
+- [x] Existing Bash scripts and documented commands remain the supported default.
 
 ## References
 
@@ -48,6 +48,9 @@ of their Bash counterparts while leaving the existing scripts unchanged.
 <!-- docket:task-log:start -->
 
 ### Commits
+
+- `d96a5eec7718` feat(add-side-by-side-bun-installers): add Bun prototypes
+<!-- docket:commit hash=d96a5eec7718e75c553fee25ff91dcb392c3adec -->
 
 ### Implementation Notes
 
@@ -73,5 +76,8 @@ of their Bash counterparts while leaving the existing scripts unchanged.
 
 - 2026-07-28T12:53:16.528Z — codex claimed task
 <!-- docket:event id=claim-2026-07-28T12:53:16.528Z -->
+
+- 2026-07-28 — task closed by codex
+<!-- docket:event id=close-2026-07-28 -->
 
 <!-- docket:task-log:end -->
