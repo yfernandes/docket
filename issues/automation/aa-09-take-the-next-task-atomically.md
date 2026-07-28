@@ -22,16 +22,16 @@ Two processes racing for one task must never both receive it.
 
 ## Acceptance Criteria
 
-- [ ] `take` accepts agent identity, lease, and the existing selection filters.
-- [ ] Selection and claim occur under one local lock.
-- [ ] Lock metadata supports actionable owner and age diagnostics.
-- [ ] Recent live locks are never silently deleted.
-- [ ] Two simultaneous processes cannot acquire the same task.
-- [ ] Failed staging or commit leaves no claim, history, or lock behind.
-- [ ] Empty queues succeed with a null task.
-- [ ] Lock cleanup runs on success, domain failure, and unexpected failure.
-- [ ] Multi-process tests cover contention and stale-lock recovery.
-- [ ] Human claim behavior remains unchanged.
+- [x] `take` accepts agent identity, lease, and the existing selection filters.
+- [x] Selection and claim occur under one local lock.
+- [x] Lock metadata supports actionable owner and age diagnostics.
+- [x] Recent live locks are never silently deleted.
+- [x] Two simultaneous processes cannot acquire the same task.
+- [x] Failed staging or commit leaves no claim, history, or lock behind.
+- [x] Empty queues succeed with a null task.
+- [x] Lock cleanup runs on success, domain failure, and unexpected failure.
+- [x] Multi-process tests cover contention and stale-lock recovery.
+- [x] Human claim behavior remains unchanged.
 
 ## Blocked by
 
@@ -53,6 +53,9 @@ Do not launch agents, retry work, coordinate remote machines, or introduce parti
 <!-- docket:task-log:start -->
 
 ### Commits
+
+- `9eb9b06e6983` feat(aa-09): take the next task atomically
+<!-- docket:commit hash=9eb9b06e69832b4f5f7b49e2b712715ddefc9fc5 -->
 
 ### Implementation Notes
 
