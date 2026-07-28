@@ -1,7 +1,7 @@
 ---
 id: aa-09-take-the-next-task-atomically
 title: AA-09 Take the next task atomically
-status: needs-triage
+status: ready-for-agent
 priority: P2
 owner: human
 owner_type: human
@@ -47,3 +47,18 @@ Do not launch agents, retry work, coordinate remote machines, or introduce parti
 - `docs/agent-automation-plan.md#take`
 - `docs/agent-automation-plan.md#concurrency-and-transaction-model`
 - `docs/agent-automation-plan.md#aa-09--atomic-take`
+
+## Task Log
+
+<!-- docket:task-log:start -->
+
+### Commits
+
+### Implementation Notes
+
+### History
+
+- 2026-07-28T06:09:38.162Z — task triaged needs-triage -> ready-for-agent
+<!-- docket:event id=triage-2026-07-28T06:09:38.162Z -->
+
+<!-- docket:task-log:end -->
