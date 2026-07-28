@@ -1,7 +1,7 @@
 ---
 id: aa-03-add-json-output-and-stable-errors-to-every-command
 title: AA-03 Add JSON output and stable errors to every command
-status: needs-triage
+status: ready-for-agent
 priority: P2
 owner: human
 owner_type: human
