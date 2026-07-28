@@ -1,11 +1,11 @@
 ---
 id: add-regular-branch-install-mode
 title: Add regular-branch install mode
-status: in-progress
+status: open
 priority: P2
-owner: codex
-owner_type: agent
-agent_id: codex
+owner: human
+owner_type: human
+agent_id: null
 tags: [libs]
 created_at: 2026-07-28
 closed_at: null
@@ -30,7 +30,7 @@ from the current `HEAD` instead of an orphan branch.
 
 ## Acceptance Criteria
 
-- [ ] `scripts/setup.sh --no-orphan` creates the configured worktree branch
+- [ ] `scripts/setup.sh --regular-branch` creates the configured worktree branch
       from the host repository's current `HEAD`.
 - [ ] Omitting the flag still creates an orphan branch.
 - [ ] `--help` and setup documentation describe the new mode.
@@ -60,5 +60,8 @@ from the current `HEAD` instead of an orphan branch.
 
 - 2026-07-28T12:31:17.667Z — codex claimed task
 <!-- docket:event id=claim-2026-07-28T12:31:17.667Z -->
+
+- 2026-07-28T12:33:15.741Z — codex released task
+<!-- docket:event id=release-2026-07-28T12:33:15.741Z -->
 
 <!-- docket:task-log:end -->

@@ -420,7 +420,7 @@
   lease_until: 2026-07-28T10:25:49.791Z
   released_at: 2026-07-28T07:26:36.467Z
 - task_id: add-regular-branch-install-mode
-  status: active
+  status: released
   owner: codex
   owner_type: agent
   agent_id: codex
@@ -429,4 +429,4 @@
   claim_id: 1503dcb3-8df3-4b11-8e52-d88c4178a079
   claimed_at: 2026-07-28T12:31:17.667Z
   lease_until: 2026-07-28T14:31:17.667Z
-  released_at: null
+  released_at: 2026-07-28T12:33:15.741Z
