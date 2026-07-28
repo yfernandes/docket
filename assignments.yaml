@@ -78,3 +78,14 @@
   claimed_at: 2026-07-28T06:00:02.949Z
   lease_until: 2026-07-28T10:00:02.949Z
   released_at: null
+- task_id: aa-08-select-the-next-task-deterministically
+  status: active
+  owner: codex-aa08
+  owner_type: agent
+  agent_id: codex-aa08
+  worktree: null
+  branch: null
+  claim_id: 244e0511-6785-4a88-b4ce-22611ddab61b
+  claimed_at: 2026-07-28T06:05:24.235Z
+  lease_until: 2026-07-28T12:05:24.235Z
+  released_at: null
