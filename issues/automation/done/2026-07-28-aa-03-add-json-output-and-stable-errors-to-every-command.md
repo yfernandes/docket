@@ -1,14 +1,14 @@
 ---
 id: aa-03-add-json-output-and-stable-errors-to-every-command
 title: AA-03 Add JSON output and stable errors to every command
-status: in-progress
+status: done
 priority: P2
 owner: codex-reconcile
 owner_type: agent
 agent_id: codex-reconcile
 tags: [automation]
 created_at: 2026-07-14
-closed_at: null
+closed_at: 2026-07-28
 ---
 ## Type
 
@@ -82,5 +82,8 @@ Reconciliation: all acceptance criteria were independently verified and implemen
 
 - 2026-07-28T07:20:59.056Z — codex-reconcile claimed task
 <!-- docket:event id=claim-2026-07-28T07:20:59.056Z -->
+
+- 2026-07-28 — task closed by codex-reconcile
+<!-- docket:event id=close-2026-07-28 -->
 
 <!-- docket:task-log:end -->
