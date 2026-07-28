@@ -22,16 +22,16 @@ Visible Task Log entries show short hashes and subjects. Full hashes remain avai
 
 ## Acceptance Criteria
 
-- [ ] Explicit commit hashes can be recorded and listed.
-- [ ] Eligible claims capture a base commit from their recorded application worktree.
-- [ ] Detection verifies the worktree and reachability before reading a range.
-- [ ] Docket task-branch commits are never recorded as implementation commits.
-- [ ] Duplicate hashes appear only once in the visible task log.
-- [ ] Reviewers and other participants may finish without commits.
-- [ ] Rewritten, unrelated, or missing histories return actionable warnings.
-- [ ] Full hashes are available in JSON while readable short hashes appear in Markdown.
-- [ ] Tests use temporary Git repositories with known commit graphs.
-- [ ] Existing workflows and verification remain green.
+- [x] Explicit commit hashes can be recorded and listed.
+- [x] Eligible claims capture a base commit from their recorded application worktree.
+- [x] Detection verifies the worktree and reachability before reading a range.
+- [x] Docket task-branch commits are never recorded as implementation commits.
+- [x] Duplicate hashes appear only once in the visible task log.
+- [x] Reviewers and other participants may finish without commits.
+- [x] Rewritten, unrelated, or missing histories return actionable warnings.
+- [x] Full hashes are available in JSON while readable short hashes appear in Markdown.
+- [x] Tests use temporary Git repositories with known commit graphs.
+- [x] Existing workflows and verification remain green.
 
 ## Blocked by
 
@@ -53,6 +53,9 @@ Do not derive remote hosting links or require commits for claim completion.
 <!-- docket:task-log:start -->
 
 ### Commits
+
+- `fd0385d9f8e1` feat(aa-06): capture implementation commits
+<!-- docket:commit hash=fd0385d9f8e186c97beae722b11b546ed3e2676d -->
 
 ### Implementation Notes
 
