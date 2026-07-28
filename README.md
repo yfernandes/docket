@@ -134,6 +134,12 @@ The default is `false`. This setting uses the canonical worktree identity, not
 the spelling of its path, and never permits Docket lifecycle commits such as
 `claim(...)`, `triage(...)`, or `close(...)` as implementation evidence.
 
+Implementation evidence normally includes the complete generated task ID. For
+compatibility with established commit conventions, Docket also accepts the
+canonical issue key at the beginning of the issue title (for example `AA-03`).
+That key is matched case-insensitively as a complete token, so `aa-03` matches
+but `AA-030` does not; arbitrary task-slug prefixes are never accepted.
+
 To update an existing install:
 
 ```bash

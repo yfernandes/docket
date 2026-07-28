@@ -1139,6 +1139,30 @@ function isDocketStateCommit(subject: string): boolean {
 	);
 }
 
+function canonicalIssueKey(title: string | undefined): string | null {
+	const match = /^([a-z]{2,}[a-z0-9]*-\d+[a-z0-9]*)(?=$|[\s:])/i.exec(
+		title ?? "",
+	);
+	return match?.[1] ?? null;
+}
+
+function messageContainsToken(message: string, token: string): boolean {
+	const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	return new RegExp(`(^|[^a-z0-9])${escaped}(?![a-z0-9])`, "i").test(message);
+}
+
+function isCommitAssociated(
+	taskId: string,
+	title: string | undefined,
+	message: string,
+): boolean {
+	const key = canonicalIssueKey(title);
+	return (
+		message.includes(taskId) ||
+		(key !== null && messageContainsToken(message, key))
+	);
+}
+
 async function applicationWorktree(
 	assignment: Assignment | undefined,
 ): Promise<{ worktree: string } | { warning: string }> {
@@ -1395,6 +1419,8 @@ async function commitEvidence(
 			"Related commits from Docket's own root require completion.allowSelfHostedCommitEvidence: true.",
 		);
 	const evidence: { hash: string; subject: string }[] = [];
+	const issuePath = findIssueFile(taskId);
+	const title = issuePath ? readIssue(issuePath).data.title : undefined;
 	for (const value of hashes) {
 		const hash = (
 			await $`git -C ${assignment.worktree} rev-parse ${value}^{commit}`.text()
@@ -1413,9 +1439,9 @@ async function commitEvidence(
 			throw new Error(
 				`Commit '${hash}' is Docket state evidence, not an implementation commit.`,
 			);
-		if (!message.includes(taskId))
+		if (!isCommitAssociated(taskId, title, message))
 			throw new Error(
-				`Commit '${hash}' is not associated with ${taskId}. Include the task ID in its commit message.`,
+				`Commit '${hash}' is not associated with ${taskId}. Include the task ID or canonical issue key in its commit message.`,
 			);
 		evidence.push({ hash, subject });
 	}

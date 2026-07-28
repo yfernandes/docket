@@ -38,22 +38,22 @@ commit protections intact.
 
 ## Acceptance Criteria
 
-- [ ] Full generated task IDs remain accepted in commit evidence.
-- [ ] A well-formed title-derived canonical key is accepted case-insensitively
+- [x] Full generated task IDs remain accepted in commit evidence.
+- [x] A well-formed title-derived canonical key is accepted case-insensitively
   only at token boundaries.
-- [ ] Prefix collisions and unrelated commit messages are rejected.
-- [ ] Docket lifecycle/state commits remain rejected even if they contain an
+- [x] Prefix collisions and unrelated commit messages are rejected.
+- [x] Docket lifecycle/state commits remain rejected even if they contain an
   otherwise valid canonical key.
-- [ ] The matching contract is documented.
-- [ ] Source and generated-bundle tests cover the stated cases and full
+- [x] The matching contract is documented.
+- [x] Source and generated-bundle tests cover the stated cases and full
   repository verification passes.
 
 ## Implementation Checklist
 
-- [ ] Implement conservative title-derived canonical-key matching.
-- [ ] Document the evidence association contract.
-- [ ] Add source and bundle compatibility coverage.
-- [ ] Run formatting, tests, build, checks, and Docket health checks.
+- [x] Implement conservative title-derived canonical-key matching.
+- [x] Document the evidence association contract.
+- [x] Add source and bundle compatibility coverage.
+- [x] Run formatting, tests, build, checks, and Docket health checks.
 
 ## References
 

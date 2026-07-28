@@ -359,6 +359,8 @@ function createSelfHostedCompletionFixture(
 	fixture: string,
 	taskId: string,
 	allowSelfHostedCommitEvidence: boolean,
+	title = "Self-hosted completion task",
+	commitMessage = `implement ${taskId}`,
 ): string {
 	writeFileSync(
 		join(fixture, "docket.json"),
@@ -374,7 +376,7 @@ function createSelfHostedCompletionFixture(
 		join(fixture, "issues", "automation", `${taskId}.md`),
 		`---
 id: ${taskId}
-title: Self-hosted completion task
+title: ${title}
 status: in-progress
 priority: P2
 owner: codex
@@ -404,7 +406,7 @@ closed_at: null
   released_at: null
 `,
 	);
-	return commitIn(fixture, `implement ${taskId}`);
+	return commitIn(fixture, commitMessage);
 }
 
 function createUpdateArchive(): string {
@@ -715,12 +717,84 @@ closed_at: null
 			});
 		});
 
+		test(`${entrypoint} accepts the complete generated task ID when a title has a canonical key`, () => {
+			withFixture((fixture) => {
+				const taskId = "canonical-full-slug";
+				const implementation = createSelfHostedCompletionFixture(
+					fixture,
+					taskId,
+					true,
+					"AA-03 Canonical evidence task",
+				);
+				const close = run(fixture, entrypoint, [
+					"close",
+					taskId,
+					"--commit",
+					implementation,
+				]);
+				expect(close.exitCode).toBe(0);
+			});
+		});
+
+		test(`${entrypoint} accepts a case-insensitive title-derived canonical key`, () => {
+			withFixture((fixture) => {
+				const taskId = "canonical-key-evidence";
+				const implementation = createSelfHostedCompletionFixture(
+					fixture,
+					taskId,
+					true,
+					"AA-03 Canonical evidence task",
+					"implement aa-03: title key evidence",
+				);
+				const close = run(fixture, entrypoint, [
+					"close",
+					taskId,
+					"--commit",
+					implementation,
+				]);
+				expect(close.exitCode).toBe(0);
+			});
+		});
+
+		test(`${entrypoint} rejects canonical-key prefix collisions and unrelated commits`, () => {
+			for (const message of [
+				"implement AA-030: prefix collision",
+				"implement unrelated evidence",
+			]) {
+				withFixture((fixture) => {
+					const taskId = "canonical-boundaries";
+					const implementation = createSelfHostedCompletionFixture(
+						fixture,
+						taskId,
+						true,
+						"AA-03 Canonical evidence task",
+						message,
+					);
+					const close = run(fixture, entrypoint, [
+						"close",
+						taskId,
+						"--commit",
+						implementation,
+					]);
+					expect(close.exitCode).not.toBe(0);
+					expect(close.stderr).toContain(
+						`Commit '${implementation}' is not associated with ${taskId}`,
+					);
+				});
+			}
+		});
+
 		test(`${entrypoint} rejects self-hosted lifecycle commits even when opted in`, () => {
 			withFixture((fixture) => {
 				const taskId = "self-hosted-lifecycle";
-				createSelfHostedCompletionFixture(fixture, taskId, true);
+				createSelfHostedCompletionFixture(
+					fixture,
+					taskId,
+					true,
+					"AA-03 Lifecycle evidence task",
+				);
 				writeFileSync(join(fixture, "lifecycle.txt"), "state-only\n");
-				const lifecycle = commitIn(fixture, `note(${taskId}): lifecycle`);
+				const lifecycle = commitIn(fixture, "note(aa-03): lifecycle");
 				const close = run(fixture, entrypoint, [
 					"close",
 					taskId,

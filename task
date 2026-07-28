@@ -1780,6 +1780,18 @@ async function gitIn(worktree, args) {
 function isDocketStateCommit(subject) {
   return /^(claim|triage|close|release|finish|note|new|render|doctor)\(/.test(subject);
 }
+function canonicalIssueKey(title) {
+  const match = /^([a-z]{2,}[a-z0-9]*-\d+[a-z0-9]*)(?=$|[\s:])/i.exec(title ?? "");
+  return match?.[1] ?? null;
+}
+function messageContainsToken(message, token) {
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escaped}(?![a-z0-9])`, "i").test(message);
+}
+function isCommitAssociated(taskId, title, message) {
+  const key = canonicalIssueKey(title);
+  return message.includes(taskId) || key !== null && messageContainsToken(message, key);
+}
 async function applicationWorktree(assignment) {
   if (!assignment?.worktree)
     return {
@@ -1961,6 +1973,8 @@ async function commitEvidence(taskId, assignment, hashes, allowSelfHostedCommitE
   if (realpathSync(assignment.worktree) === realpathSync(ROOT) && !allowSelfHostedCommitEvidence)
     throw new Error("Related commits from Docket's own root require completion.allowSelfHostedCommitEvidence: true.");
   const evidence = [];
+  const issuePath = findIssueFile(taskId);
+  const title = issuePath ? readIssue(issuePath).data.title : undefined;
   for (const value of hashes) {
     const hash = (await $2`git -C ${assignment.worktree} rev-parse ${value}^{commit}`.text()).trim();
     if (!hash)
@@ -1969,8 +1983,8 @@ async function commitEvidence(taskId, assignment, hashes, allowSelfHostedCommitE
     const message = (await $2`git -C ${assignment.worktree} show -s --format=%B ${hash}`.text()).trim();
     if (isDocketStateCommit(subject))
       throw new Error(`Commit '${hash}' is Docket state evidence, not an implementation commit.`);
-    if (!message.includes(taskId))
-      throw new Error(`Commit '${hash}' is not associated with ${taskId}. Include the task ID in its commit message.`);
+    if (!isCommitAssociated(taskId, title, message))
+      throw new Error(`Commit '${hash}' is not associated with ${taskId}. Include the task ID or canonical issue key in its commit message.`);
     evidence.push({ hash, subject });
   }
   return evidence;
