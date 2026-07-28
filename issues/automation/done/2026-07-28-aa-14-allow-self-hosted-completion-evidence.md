@@ -1,14 +1,14 @@
 ---
 id: aa-14-allow-self-hosted-completion-evidence
 title: AA-14 Allow self-hosted completion evidence
-status: in-progress
+status: done
 priority: P2
 owner: codex-aa14
 owner_type: agent
 agent_id: codex-aa14
 tags: [automation]
 created_at: 2026-07-28
-closed_at: null
+closed_at: 2026-07-28
 ---
 
 ## Context
@@ -51,6 +51,9 @@ installation opts in.
 
 ### Commits
 
+- `2906d61104b0` feat(aa-14-allow-self-hosted-completion-evidence): opt in to root commit evidence
+<!-- docket:commit hash=2906d61104b09db034f01643ca4b96c086c7193b -->
+
 ### Implementation Notes
 
 #### 2026-07-28 07:04 UTC — review — codex-aa14
@@ -69,5 +72,8 @@ Scoped manual review completed: inspected config parsing, canonical-root enforce
 
 - 2026-07-28T06:59:37.841Z — codex-aa14 claimed task
 <!-- docket:event id=claim-2026-07-28T06:59:37.841Z -->
+
+- 2026-07-28 — task closed by codex-aa14
+<!-- docket:event id=close-2026-07-28 -->
 
 <!-- docket:task-log:end -->

@@ -145,7 +145,7 @@
   lease_until: 2026-07-28T10:49:12.098Z
   released_at: null
 - task_id: aa-14-allow-self-hosted-completion-evidence
-  status: active
+  status: released
   owner: codex-aa14
   owner_type: agent
   agent_id: codex-aa14
@@ -154,4 +154,4 @@
   claim_id: 4744e514-b0e4-45ba-b69e-028d18e2c423
   claimed_at: 2026-07-28T06:59:37.841Z
   lease_until: 2026-07-28T14:59:37.841Z
-  released_at: null
+  released_at: 2026-07-28T07:05:03.085Z
