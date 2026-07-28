@@ -216,7 +216,7 @@
   lease_until: 2026-07-28T09:10:32.068Z
   released_at: 2026-07-28T07:10:52.204Z
 - task_id: aa-10-coordinate-participant-roles-and-outcomes
-  status: active
+  status: released
   owner: codex-reconcile
   owner_type: agent
   agent_id: codex-reconcile
@@ -226,4 +226,4 @@
   base_commit: 20aa03c2f9a1f1d5fc8b6d42e4c12178a3a19ad2
   claimed_at: 2026-07-28T07:11:04.572Z
   lease_until: 2026-07-28T09:11:04.562Z
-  released_at: null
+  released_at: 2026-07-28T07:11:24.342Z
