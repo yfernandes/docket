@@ -1,7 +1,7 @@
 ---
 id: add-regular-branch-install-mode
 title: Add regular-branch install mode
-status: needs-triage
+status: ready-for-agent
 priority: P2
 owner: human
 owner_type: human
@@ -13,65 +13,32 @@ closed_at: null
 
 ## Context
 
+The setup script currently always creates the Docket worktree on a new orphan
+branch. Some consumers want the separate worktree and branch while retaining
+the host repository's existing history.
+
 ## Objective
+
+Add an opt-in setup flag that creates the Docket worktree on a regular branch
+from the current `HEAD` instead of an orphan branch.
 
 ## Constraints
 
+- Preserve the orphan-branch behavior as the default.
+- Preserve the existing directory and branch configuration options.
+- Keep the installation non-interactive when `--yes` is supplied.
+
 ## Acceptance Criteria
 
-## Implementation Checklist
-
-### Frontend Checklist
-
-- [ ] UI matches design reference (Figma or equivalent)
-- [ ] Component is isolated and reusable (no hidden coupling)
-- [ ] Storybook story created or updated
-  - [ ] Default state
-  - [ ] Edge states (loading, empty, error)
-- [ ] Props are minimal and well-defined
-- [ ] No business logic leaked into UI layer
-- [ ] Responsive behavior verified (mobile + desktop)
-- [ ] Accessibility basics covered (labels, roles, keyboard)
-
-### Backend Checklist
-
-- [ ] Clear input/output contract defined
-- [ ] Validation implemented at boundaries
-- [ ] No silent failures (explicit error handling)
-- [ ] Idempotency considered where applicable
-- [ ] No tight coupling to external services
-- [ ] Logging added for critical paths
-- [ ] Performance implications considered
-
-### Testing Checklist
-
-- [ ] Unit tests cover core logic
-- [ ] Edge cases explicitly tested
-- [ ] Happy path verified
-- [ ] Regression risk areas covered
-- [ ] Tests are deterministic (no flaky timing deps)
-
-### Integration Checklist
-
-- [ ] External dependency identified (API, service, SDK)
-- [ ] Failure modes mapped (timeouts, bad responses)
-- [ ] Retry / fallback strategy defined (if needed)
-- [ ] Data contracts validated (no implicit assumptions)
-- [ ] Version compatibility considered
-
-### Delivery Checklist
-
-- [ ] Branch created: `feat/<slug>` or `fix/<slug>`
-- [ ] Small, reviewable commits
-- [ ] No unrelated changes included
-- [ ] PR includes context and testing notes
-- [ ] CI passing
+- [ ] `scripts/setup.sh --no-orphan` creates the configured worktree branch
+      from the host repository's current `HEAD`.
+- [ ] Omitting the flag still creates an orphan branch.
+- [ ] `--help` and setup documentation describe the new mode.
+- [ ] Automated tests cover both branch ancestry modes.
 
 ## References
 
-- Figma:
-- API Docs:
-- Related Issue:
+- User request on 2026-07-28.
 
 ## Notes
 
@@ -87,5 +54,8 @@ closed_at: null
 
 - 2026-07-28T12:30:56.206Z — task created by human
 <!-- docket:event id=create-2026-07-28T12:30:56.206Z -->
+
+- 2026-07-28T12:31:17.625Z — task triaged needs-triage -> ready-for-agent
+<!-- docket:event id=triage-2026-07-28T12:31:17.625Z -->
 
 <!-- docket:task-log:end -->
