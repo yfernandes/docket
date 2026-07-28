@@ -1,11 +1,11 @@
 ---
 id: aa-10-coordinate-participant-roles-and-outcomes
 title: AA-10 Coordinate participant roles and outcomes
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex-aa10
+owner_type: agent
+agent_id: codex-aa10
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -62,5 +62,8 @@ Do not enforce fixture capacity, stage ordering, agent launching, or model confi
 
 - 2026-07-28T06:21:19.743Z — task triaged needs-triage -> ready-for-agent
 <!-- docket:event id=triage-2026-07-28T06:21:19.743Z -->
+
+- 2026-07-28T06:21:25.960Z — codex-aa10 claimed task
+<!-- docket:event id=claim-2026-07-28T06:21:25.960Z -->
 
 <!-- docket:task-log:end -->

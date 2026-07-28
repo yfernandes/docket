@@ -100,3 +100,14 @@
   claimed_at: 2026-07-28T06:09:38.201Z
   lease_until: 2026-07-28T10:09:38.200Z
   released_at: null
+- task_id: aa-10-coordinate-participant-roles-and-outcomes
+  status: active
+  owner: codex-aa10
+  owner_type: agent
+  agent_id: codex-aa10
+  worktree: null
+  branch: null
+  claim_id: bf5fdff2-dc9a-47fa-9a56-c8c548fafd9d
+  claimed_at: 2026-07-28T06:21:25.960Z
+  lease_until: 2026-07-28T10:21:25.960Z
+  released_at: null
