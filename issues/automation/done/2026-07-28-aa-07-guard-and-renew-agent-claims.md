@@ -1,14 +1,14 @@
 ---
 id: aa-07-guard-and-renew-agent-claims
 title: AA-07 Guard and renew agent claims
-status: in-progress
+status: done
 priority: P2
 owner: codex-reconcile
 owner_type: agent
 agent_id: codex-reconcile
 tags: [automation]
 created_at: 2026-07-14
-closed_at: null
+closed_at: 2026-07-28
 ---
 ## Type
 
@@ -83,5 +83,8 @@ Reconciliation: implementation commit 40fae8c and the dedicated source/bundle cl
 
 - 2026-07-28T07:22:15.451Z — codex-reconcile claimed task
 <!-- docket:event id=claim-2026-07-28T07:22:15.451Z -->
+
+- 2026-07-28 — task closed by codex-reconcile
+<!-- docket:event id=close-2026-07-28 -->
 
 <!-- docket:task-log:end -->
