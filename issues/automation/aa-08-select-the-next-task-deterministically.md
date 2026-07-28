@@ -22,16 +22,16 @@ Selection order is priority, oldest creation time, task ID, and later slot ID wh
 
 ## Acceptance Criteria
 
-- [ ] `next` supports the documented task filters.
-- [ ] P1 through P4 priority ordering is stable.
-- [ ] Older tasks win within equal priority.
-- [ ] Task ID provides a deterministic final tie-breaker.
-- [ ] Filesystem enumeration order cannot affect the result.
-- [ ] `next` never mutates task or assignment files.
-- [ ] An empty queue is successful and returns `task: null` in JSON.
-- [ ] Human output clearly reports when nothing is available.
-- [ ] Selection logic is shared rather than duplicated from list filtering.
-- [ ] Source and bundled tests pass.
+- [x] `next` supports the documented task filters.
+- [x] P1 through P4 priority ordering is stable.
+- [x] Older tasks win within equal priority.
+- [x] Task ID provides a deterministic final tie-breaker.
+- [x] Filesystem enumeration order cannot affect the result.
+- [x] `next` never mutates task or assignment files.
+- [x] An empty queue is successful and returns `task: null` in JSON.
+- [x] Human output clearly reports when nothing is available.
+- [x] Selection logic is shared rather than duplicated from list filtering.
+- [x] Source and bundled tests pass.
 
 ## Blocked by
 
@@ -51,6 +51,9 @@ Do not claim the selected task, implement filesystem locking, or calculate crew 
 <!-- docket:task-log:start -->
 
 ### Commits
+
+- `bf7e3a18e884` feat(aa-08): select next task deterministically
+<!-- docket:commit hash=bf7e3a18e8843d64ed925ee71e177494cb2d8720 -->
 
 ### Implementation Notes
 
