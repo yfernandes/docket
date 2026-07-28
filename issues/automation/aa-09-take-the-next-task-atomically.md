@@ -65,6 +65,12 @@ Do not launch agents, retry work, coordinate remote machines, or introduce parti
 
 Implemented atomic local take in 9eb9b06: tokenized lock metadata and safe stale recovery, reload/expiry/deterministic selection/claim/history in one rollback transaction, and source/bundled contention plus rollback coverage. Verified bun run build, bun test (72 pass), bun run check, task lint, task doctor, and git diff --check. Closure remains pending human acceptance-criteria confirmation; the configured all-policy rejects closure while boxes remain unchecked.
 
+#### 2026-07-28 07:10 UTC — blocker — codex-reconcile
+
+<!-- docket:note id=note-2026-07-28T07:10:52.159Z claim=bf7659a8-bd9c-47f8-abc6-e7424dc050ea kind=blocker -->
+
+Reconciliation: all acceptance criteria were independently verified and implementation commit 9eb9b06 is recorded. Guarded close remains blocked because commit evidence requires the full task slug while the verified feature commit subject uses the canonical short ID aa-09. No override used.
+
 ### History
 
 - 2026-07-28T06:09:38.162Z — task triaged needs-triage -> ready-for-agent
