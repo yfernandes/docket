@@ -20,7 +20,6 @@ Canonical tracker for planning and execution state.
 - [-] [AA-11 Add crew fixtures and slot visibility](issues/automation/aa-11-add-crew-fixtures-and-slot-visibility.md) (id:aa-11-add-crew-fixtures-and-slot-visibility) — codex-aa11 since 2026-07-28
 - [-] [AA-12 Scout structured notes across tasks](issues/automation/aa-12-scout-structured-notes-across-tasks.md) (id:aa-12-scout-structured-notes-across-tasks) — codex-aa12 since 2026-07-28
 - [-] [AA-13 Document and verify reference agent loops](issues/automation/aa-13-document-and-verify-reference-agent-loops.md) (id:aa-13-document-and-verify-reference-agent-loops) — codex-aa13 since 2026-07-28
-- [-] [AA-05 Record notes and lifecycle history](issues/automation/aa-05-record-notes-and-lifecycle-history.md) (id:aa-05-record-notes-and-lifecycle-history) — codex-reconcile since 2026-07-28
 
 ## Issue Scratchpad
 

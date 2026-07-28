@@ -180,7 +180,7 @@
   lease_until: 2026-07-28T09:08:24.979Z
   released_at: 2026-07-28T07:08:45.162Z
 - task_id: aa-05-record-notes-and-lifecycle-history
-  status: active
+  status: released
   owner: codex-reconcile
   owner_type: agent
   agent_id: codex-reconcile
@@ -190,4 +190,4 @@
   base_commit: 69431e3e69ee951bf5d5305ffb22d514783ceac4
   claimed_at: 2026-07-28T07:08:58.739Z
   lease_until: 2026-07-28T09:08:58.730Z
-  released_at: null
+  released_at: 2026-07-28T07:09:09.964Z
