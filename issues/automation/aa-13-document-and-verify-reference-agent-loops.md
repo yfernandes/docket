@@ -1,11 +1,11 @@
 ---
 id: aa-13-document-and-verify-reference-agent-loops
 title: AA-13 Document and verify reference agent loops
-status: open
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex-reconcile
+owner_type: agent
+agent_id: codex-reconcile
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -87,5 +87,8 @@ Reconciliation: all acceptance criteria were independently verified and implemen
 
 - 2026-07-28T07:13:09.927Z — codex-reconcile released task
 <!-- docket:event id=release-2026-07-28T07:13:09.927Z -->
+
+- 2026-07-28T07:23:54.026Z — codex-reconcile claimed task
+<!-- docket:event id=claim-2026-07-28T07:23:54.026Z -->
 
 <!-- docket:task-log:end -->

@@ -395,3 +395,15 @@
   claimed_at: 2026-07-28T07:23:39.319Z
   lease_until: 2026-07-28T09:23:39.310Z
   released_at: 2026-07-28T07:23:47.515Z
+- task_id: aa-13-document-and-verify-reference-agent-loops
+  status: active
+  owner: codex-reconcile
+  owner_type: agent
+  agent_id: codex-reconcile
+  worktree: /home/yago/projects/active/docket
+  branch: null
+  claim_id: 2038ddc8-caef-4dd9-9f0f-52833372656d
+  base_commit: 725b5786e1be1182c02d997f75ccc9d49ff9175d
+  claimed_at: 2026-07-28T07:23:54.026Z
+  lease_until: 2026-07-28T09:23:54.017Z
+  released_at: null
