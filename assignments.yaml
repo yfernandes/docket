@@ -203,3 +203,15 @@
   claimed_at: 2026-07-28T07:09:57.299Z
   lease_until: 2026-07-28T09:09:57.292Z
   released_at: 2026-07-28T07:10:19.214Z
+- task_id: aa-09-take-the-next-task-atomically
+  status: active
+  owner: codex-reconcile
+  owner_type: agent
+  agent_id: codex-reconcile
+  worktree: /home/yago/projects/active/docket
+  branch: null
+  claim_id: bf7659a8-bd9c-47f8-abc6-e7424dc050ea
+  base_commit: 240257af2b7758acd228982111f77d49fa53e1f7
+  claimed_at: 2026-07-28T07:10:32.077Z
+  lease_until: 2026-07-28T09:10:32.068Z
+  released_at: null

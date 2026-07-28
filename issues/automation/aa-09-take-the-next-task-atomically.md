@@ -1,11 +1,11 @@
 ---
 id: aa-09-take-the-next-task-atomically
 title: AA-09 Take the next task atomically
-status: open
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex-reconcile
+owner_type: agent
+agent_id: codex-reconcile
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -72,5 +72,8 @@ Implemented atomic local take in 9eb9b06: tokenized lock metadata and safe stale
 
 - 2026-07-28T07:10:32.024Z — codex-aa09 released task
 <!-- docket:event id=release-2026-07-28T07:10:32.024Z -->
+
+- 2026-07-28T07:10:32.077Z — codex-reconcile claimed task
+<!-- docket:event id=claim-2026-07-28T07:10:32.077Z -->
 
 <!-- docket:task-log:end -->
