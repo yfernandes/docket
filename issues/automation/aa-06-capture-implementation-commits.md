@@ -1,11 +1,11 @@
 ---
 id: aa-06-capture-implementation-commits
 title: AA-06 Capture implementation commits
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex
+owner_type: agent
+agent_id: codex
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -60,5 +60,8 @@ Do not derive remote hosting links or require commits for claim completion.
 
 - 2026-07-28T04:59:15.960Z — task triaged needs-triage -> ready-for-agent
 <!-- docket:event id=triage-2026-07-28T04:59:15.960Z -->
+
+- 2026-07-28T04:59:15.999Z — codex claimed task
+<!-- docket:event id=claim-2026-07-28T04:59:15.999Z -->
 
 <!-- docket:task-log:end -->
