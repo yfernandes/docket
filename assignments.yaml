@@ -396,7 +396,7 @@
   lease_until: 2026-07-28T09:23:39.310Z
   released_at: 2026-07-28T07:23:47.515Z
 - task_id: aa-13-document-and-verify-reference-agent-loops
-  status: active
+  status: released
   owner: codex-reconcile
   owner_type: agent
   agent_id: codex-reconcile
@@ -406,4 +406,4 @@
   base_commit: 725b5786e1be1182c02d997f75ccc9d49ff9175d
   claimed_at: 2026-07-28T07:23:54.026Z
   lease_until: 2026-07-28T09:23:54.017Z
-  released_at: null
+  released_at: 2026-07-28T07:24:14.485Z
