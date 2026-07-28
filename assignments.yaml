@@ -215,3 +215,15 @@
   claimed_at: 2026-07-28T07:10:32.077Z
   lease_until: 2026-07-28T09:10:32.068Z
   released_at: 2026-07-28T07:10:52.204Z
+- task_id: aa-10-coordinate-participant-roles-and-outcomes
+  status: active
+  owner: codex-reconcile
+  owner_type: agent
+  agent_id: codex-reconcile
+  worktree: /home/yago/projects/active/docket
+  branch: null
+  claim_id: 2a47ffd9-3d11-4d79-846d-847de74a00e8
+  base_commit: 20aa03c2f9a1f1d5fc8b6d42e4c12178a3a19ad2
+  claimed_at: 2026-07-28T07:11:04.572Z
+  lease_until: 2026-07-28T09:11:04.562Z
+  released_at: null

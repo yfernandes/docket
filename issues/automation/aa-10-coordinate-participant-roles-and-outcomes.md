@@ -1,11 +1,11 @@
 ---
 id: aa-10-coordinate-participant-roles-and-outcomes
 title: AA-10 Coordinate participant roles and outcomes
-status: open
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex-reconcile
+owner_type: agent
+agent_id: codex-reconcile
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -74,5 +74,8 @@ Implemented participant roles, distinct slots, guarded finish outcomes, atomic T
 
 - 2026-07-28T07:11:04.515Z — codex-aa10 released task
 <!-- docket:event id=release-2026-07-28T07:11:04.515Z -->
+
+- 2026-07-28T07:11:04.572Z — codex-reconcile claimed task
+<!-- docket:event id=claim-2026-07-28T07:11:04.572Z -->
 
 <!-- docket:task-log:end -->
