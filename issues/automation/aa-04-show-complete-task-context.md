@@ -1,11 +1,11 @@
 ---
 id: aa-04-show-complete-task-context
 title: AA-04 Show complete task context
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: codex
+owner: codex-reconcile
 owner_type: agent
-agent_id: codex
+agent_id: codex-reconcile
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -64,5 +64,8 @@ Do not add note creation, commit detection, fixture slot calculation, or cross-t
 
 - 2026-07-28T07:08:24.936Z — task triaged in-progress -> ready-for-agent
 <!-- docket:event id=triage-2026-07-28T07:08:24.936Z -->
+
+- 2026-07-28T07:08:24.986Z — codex-reconcile claimed task
+<!-- docket:event id=claim-2026-07-28T07:08:24.986Z -->
 
 <!-- docket:task-log:end -->
