@@ -1,11 +1,11 @@
 ---
 id: add-side-by-side-bun-installers
 title: Add side-by-side Bun installers
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex
+owner_type: agent
+agent_id: codex
 tags: [libs]
 created_at: 2026-07-28
 closed_at: null
@@ -58,5 +58,8 @@ of their Bash counterparts while leaving the existing scripts unchanged.
 
 - 2026-07-28T12:39:40.652Z — task triaged needs-triage -> ready-for-agent
 <!-- docket:event id=triage-2026-07-28T12:39:40.652Z -->
+
+- 2026-07-28T12:39:40.709Z — codex claimed task
+<!-- docket:event id=claim-2026-07-28T12:39:40.709Z -->
 
 <!-- docket:task-log:end -->

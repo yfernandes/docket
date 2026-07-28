@@ -442,3 +442,15 @@
   claimed_at: 2026-07-28T12:34:39.186Z
   lease_until: 2026-07-28T14:34:39.176Z
   released_at: 2026-07-28T12:35:13.191Z
+- task_id: add-side-by-side-bun-installers
+  status: active
+  owner: codex
+  owner_type: agent
+  agent_id: codex
+  worktree: /home/yago/projects/active/docket
+  branch: null
+  claim_id: ede8dbc8-f3ce-4fc7-8891-3f5eb736e270
+  base_commit: 86797333c31350b5f2837dbb518d6e32db07c9bc
+  claimed_at: 2026-07-28T12:39:40.709Z
+  lease_until: 2026-07-28T15:39:40.701Z
+  released_at: null
