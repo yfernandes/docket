@@ -55,6 +55,12 @@ Do not automatically create tasks from notes. Note promotion is a later, separat
 
 ### Implementation Notes
 
+#### 2026-07-28 06:48 UTC — blocker — codex-aa12
+
+<!-- docket:note id=note-2026-07-28T06:48:08.438Z kind=blocker -->
+
+Implementation complete in 8c2bcd0: task notes scouts structured Task Log notes across active and archived tasks with stable JSON provenance and filters. Verified with bun test, build, check, task lint, task doctor, and git diff --check. Close remains blocked by the configured self-hosted root-worktree completion evidence gate; do not bypass it.
+
 ### History
 
 - 2026-07-28T06:43:12.935Z — task triaged needs-triage -> ready-for-agent
