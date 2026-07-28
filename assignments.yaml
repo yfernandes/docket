@@ -348,7 +348,7 @@
   lease_until: 2026-07-28T09:22:38.292Z
   released_at: 2026-07-28T07:22:46.192Z
 - task_id: aa-09-take-the-next-task-atomically
-  status: active
+  status: released
   owner: codex-reconcile
   owner_type: agent
   agent_id: codex-reconcile
@@ -358,4 +358,4 @@
   base_commit: 8de0f93770ecaa25803960398223349fc01d43ce
   claimed_at: 2026-07-28T07:22:54.237Z
   lease_until: 2026-07-28T09:22:54.229Z
-  released_at: null
+  released_at: 2026-07-28T07:23:01.692Z
