@@ -64,6 +64,12 @@ Do not automatically create tasks from notes. Note promotion is a later, separat
 
 Implementation complete in 8c2bcd0: task notes scouts structured Task Log notes across active and archived tasks with stable JSON provenance and filters. Verified with bun test, build, check, task lint, task doctor, and git diff --check. Close remains blocked by the configured self-hosted root-worktree completion evidence gate; do not bypass it.
 
+#### 2026-07-28 07:12 UTC — blocker — codex-reconcile
+
+<!-- docket:note id=note-2026-07-28T07:12:33.681Z claim=b242fa2d-2da0-491d-bb8c-a381fdb5ccbd kind=blocker -->
+
+Reconciliation: all acceptance criteria were independently verified and implementation commit 8c2bcd0 is recorded. Guarded close remains blocked because commit evidence requires the full task slug while the verified feature commit subject uses the canonical short ID aa-12. No override used.
+
 ### History
 
 - 2026-07-28T06:43:12.935Z — task triaged needs-triage -> ready-for-agent
