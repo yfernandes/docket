@@ -104,6 +104,15 @@ with your portion and a human should review):
 ./task close stripe-webhook-route
 ```
 
+### External loops stay outside Docket
+
+For a shell, Bun, or CI harness, use `./task take --agent <id> --lease <min>
+--json` to acquire work atomically. Persist the returned `claim_id`, renew it
+with `task renew` before it expires, and pass it to `finish` or guarded
+`release`. Docket records claims and outcomes; the harness starts any worker
+and decides implement/review/fix sequencing. See `docs/reference-agent-loops.md`
+for fake-worker reference loops and recovery behavior.
+
 ---
 
 ## Creating a new issue

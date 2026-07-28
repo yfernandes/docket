@@ -26,5 +26,7 @@ you want a single portable file.
 - Release unfinished work before the lease expires.
 - Close completed work through the CLI so issues are archived consistently.
 - Run `./task doctor` and `./task lint` when state looks stale.
+- For external loops, use `take --json`, retain and guard claim IDs, renew
+  leases, and keep model launch and workflow policy outside Docket.
 
 Shared workflow details live in `skills/core/task-workflow.md`.

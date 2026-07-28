@@ -53,6 +53,12 @@ Current scopes: `backend`, `frontend`, `libs`, `cms`.
 4. Do the work in the main repository. Keep the issue id in mind for status
    updates and final notes.
 
+   For an external automation loop, acquire atomically with `./task take`, use
+   `--json`, persist the returned claim ID, renew it before expiry, and finish
+   participant claims with that exact ID. The harness—not Docket—starts workers
+   and decides any implement/review/fix sequence. See
+   `docs/reference-agent-loops.md`.
+
 5. Release or close the task.
 
    ```bash

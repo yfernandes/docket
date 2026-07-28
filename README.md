@@ -138,6 +138,11 @@ Preconfigured skills are included for Claude Code, Codex, Gemini CLI, GitHub
 Copilot, Cursor, Aider, Continue, and Windsurf. See `skills/README.md` for the
 full matrix.
 
+For an existing shell, Bun, CI, or other external harness, see
+[Reference external agent loops](docs/reference-agent-loops.md). Those examples
+use the CLI and local fake-worker tests only; Docket does not launch models or
+encode an implement/review/fix workflow.
+
 **Claude Code** — add to `CLAUDE.md`:
 
 ```markdown
