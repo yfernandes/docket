@@ -17,6 +17,7 @@ import {
 	policyApplies,
 	readFileConfig,
 } from "./config";
+import { fixtureForTask, roleForFixture, slotsForFixture } from "./fixtures";
 import { parseFrontmatter, serializeFrontmatter } from "./frontmatter";
 import {
 	domainError,
@@ -261,6 +262,11 @@ export async function cmdLint() {
 		for (const message of parseTaskLog(readIssue(filePath).body).errors) {
 			err(`${rel}: ${message}`);
 		}
+		try {
+			fixtureForTask(data);
+		} catch (error) {
+			err(`${rel}: ${(error as Error).message}`);
+		}
 
 		const slug = basename(filePath, ".md").replace(/^\d{4}-\d{2}-\d{2}-/, "");
 		if (data.id && data.id !== slug)
@@ -415,7 +421,7 @@ export async function cmdClaim(args: string[]) {
 			usageError(`Claim ${field} must not contain whitespace, '=' or '>'.`);
 	}
 
-	const record = await claimTask(taskId, {
+	const options: ClaimOptions = {
 		agentId,
 		owner,
 		ownerType,
@@ -426,7 +432,10 @@ export async function cmdClaim(args: string[]) {
 		role: participant ? (flags.role ?? null) : null,
 		slot: participant ? (flags.slot ?? null) : null,
 		runId: participant ? (flags.run ?? null) : null,
-	});
+	};
+	const record = participant
+		? await withTakeLock(agentId as string, () => claimTask(taskId, options))
+		: await claimTask(taskId, options);
 	console.log(`Claimed '${taskId}' by '${owner}'`);
 	return { task_id: taskId, assignment: record };
 }
@@ -542,6 +551,29 @@ async function claimTask(
 	expired: ExpiredClaim[] = [],
 	message = `claim(${taskId}): ${options.owner}`,
 ): Promise<Assignment> {
+	const issuePath = findIssueFile(taskId);
+	let fixtureId: string | null = null;
+	let roleCapacity: number | null = null;
+	if (options.assignmentType === "participant") {
+		if (!issuePath) die(`Issue not found for '${taskId}'`);
+		const fixture = fixtureForTask(readIssue(issuePath).data);
+		if (!fixture)
+			die(
+				`Task '${taskId}' does not select a crew fixture; participant claims require fixture: <id>.`,
+			);
+		const role = roleForFixture(fixture, options.role ?? "");
+		if (!role)
+			die(`Fixture '${fixture.id}' does not define role '${options.role}'.`);
+		const expectedSlots = slotsForFixture(fixture)
+			.filter((slot) => slot.role === role.role)
+			.map((slot) => slot.slot);
+		if (!expectedSlots.includes(options.slot ?? ""))
+			die(
+				`Fixture '${fixture.id}' role '${role.role}' accepts slots: ${expectedSlots.join(", ")}.`,
+			);
+		fixtureId = fixture.id;
+		roleCapacity = role.slots;
+	}
 	const conflict = assignments.find((assignment) => {
 		if (assignment.task_id !== taskId || assignment.status !== "active")
 			return false;
@@ -550,11 +582,23 @@ async function claimTask(
 		return !isParticipant(assignment);
 	});
 	if (conflict) die(`Task '${taskId}' already claimed by '${conflict.owner}'`);
+	if (options.assignmentType === "participant") {
+		const activeRoleClaims = assignments.filter(
+			(assignment) =>
+				assignment.task_id === taskId &&
+				assignment.status === "active" &&
+				isParticipant(assignment) &&
+				assignment.role === options.role,
+		);
+		if (activeRoleClaims.length >= (roleCapacity as number))
+			die(
+				`Fixture '${fixtureId}' role '${options.role}' is at capacity (${roleCapacity} active slot${roleCapacity === 1 ? "" : "s"}).`,
+			);
+	}
 
 	const expiredTaskIds = new Set(
 		expired.map(({ assignment }) => assignment.task_id),
 	);
-	const issuePath = findIssueFile(taskId);
 	if (issuePath) {
 		const { data } = readIssue(issuePath);
 		const claimableStatuses = new Set([
@@ -1768,6 +1812,10 @@ export async function cmdTake(args: string[]) {
 			"Usage: task take --agent <agent-id> --lease <minutes> [--status <status>] [--scope <scope>] [--owner <owner>] [--tag <tag>] [--worktree <path>] [--branch <branch>]",
 		);
 	}
+	if (flags.run && !flags.role)
+		die("Usage: task take --role <role> is required when --run is provided");
+	if (flags.role?.match(/[\s=>]/) || flags.run?.match(/[\s=>]/))
+		usageError("Take role and run must not contain whitespace, '=' or '>'.");
 
 	return withTakeLock(agentId, async () => {
 		// All task and assignment reads intentionally happen after lock acquisition.
@@ -1777,7 +1825,7 @@ export async function cmdTake(args: string[]) {
 		const expiredTaskIds = new Set(
 			expired.map(({ assignment }) => assignment.task_id),
 		);
-		const { status = "ready-for-agent", ...selectionFlags } = flags;
+		const { status = "ready-for-agent", role, run, ...selectionFlags } = flags;
 		const candidates = filterIssueRows(
 			filteredIssues({})
 				.map((issue) =>
@@ -1791,7 +1839,34 @@ export async function cmdTake(args: string[]) {
 							}
 						: issue,
 				)
-				.filter((issue) => issue.status === status),
+				.filter(
+					(issue) =>
+						issue.status === status ||
+						(Boolean(role) && issue.status === "in-progress"),
+				)
+				.filter((issue) => {
+					if (!role) return true;
+					const issuePath = findIssueFile(issue.id);
+					if (!issuePath) return false;
+					const fixture = fixtureForTask(readIssue(issuePath).data);
+					if (!fixture) return false;
+					const selectedRole = roleForFixture(fixture, role);
+					if (!selectedRole) return false;
+					const activeSlots = new Set(
+						assignments
+							.filter(
+								(assignment) =>
+									assignment.task_id === issue.id &&
+									assignment.status === "active" &&
+									isParticipant(assignment) &&
+									assignment.role === role,
+							)
+							.map((assignment) => assignment.slot),
+					);
+					return slotsForFixture(fixture).some(
+						(slot) => slot.role === role && !activeSlots.has(slot.slot),
+					);
+				}),
 			selectionFlags,
 		).toSorted(compareIssues);
 		const task = candidates[0];
@@ -1808,6 +1883,23 @@ export async function cmdTake(args: string[]) {
 		}
 
 		const owner = agentId;
+		const issuePath = findIssueFile(task.id);
+		const fixture =
+			role && issuePath ? fixtureForTask(readIssue(issuePath).data) : null;
+		const slot =
+			fixture && role
+				? (slotsForFixture(fixture).find(
+						(candidate) =>
+							candidate.role === role &&
+							!assignments.some(
+								(assignment) =>
+									assignment.task_id === task.id &&
+									assignment.status === "active" &&
+									isParticipant(assignment) &&
+									assignment.slot === candidate.slot,
+							),
+					)?.slot ?? null)
+				: null;
 		const assignment = await claimTask(
 			task.id,
 			{
@@ -1817,22 +1909,124 @@ export async function cmdTake(args: string[]) {
 				worktree: flags.worktree ?? null,
 				branch: flags.branch ?? null,
 				leaseMinutes,
-				assignmentType: "primary",
-				role: null,
-				slot: null,
-				runId: null,
+				assignmentType: role ? "participant" : "primary",
+				role: role ?? null,
+				slot,
+				runId: run ?? null,
 			},
 			assignments,
 			expired,
 			`take(${task.id}): ${owner}`,
 		);
-		const issuePath = findIssueFile(task.id);
-		const claimedTask = issuePath
-			? readIssue(issuePath).data
+		const claimedIssuePath = findIssueFile(task.id);
+		const claimedTask = claimedIssuePath
+			? readIssue(claimedIssuePath).data
 			: publicIssue(task);
 		console.log(`Took '${task.id}' as '${owner}'`);
 		return { task: claimedTask, assignment };
 	});
+}
+
+// ── task slots ───────────────────────────────────────────────────────────────
+
+type SlotState = "free" | "active" | "completed" | "expired";
+
+interface SlotReport {
+	role: string;
+	slot: string;
+	exclusive: boolean;
+	state: SlotState;
+	assignment: Assignment | null;
+}
+
+function stateForSlot(assignments: Assignment[]): {
+	state: SlotState;
+	assignment: Assignment | null;
+} {
+	const active = assignments.find(
+		(assignment) => assignment.status === "active",
+	);
+	if (active) return { state: "active", assignment: active };
+	const settled = assignments
+		.filter(
+			(assignment) =>
+				assignment.status === "completed" || assignment.status === "expired",
+		)
+		.toSorted((left, right) =>
+			(right.completed_at ?? right.claimed_at).localeCompare(
+				left.completed_at ?? left.claimed_at,
+			),
+		)[0];
+	if (!settled) return { state: "free", assignment: null };
+	return { state: settled.status, assignment: settled };
+}
+
+function slotReports(
+	data: IssueFrontmatter,
+	assignments: Assignment[],
+	runId: string | undefined,
+): { fixture: string | null; slots: SlotReport[] } {
+	const fixture = fixtureForTask(data);
+	if (!fixture) {
+		const primary = assignments.filter(
+			(assignment) => !isParticipant(assignment),
+		);
+		const state = stateForSlot(primary);
+		return {
+			fixture: null,
+			slots: [
+				{
+					role: "primary",
+					slot: "primary-1",
+					exclusive: true,
+					...state,
+				},
+			],
+		};
+	}
+
+	return {
+		fixture: fixture.id,
+		slots: slotsForFixture(fixture).map((slot) => {
+			const matching = assignments.filter(
+				(assignment) =>
+					isParticipant(assignment) &&
+					assignment.role === slot.role &&
+					assignment.slot === slot.slot &&
+					(runId === undefined || assignment.run_id === runId),
+			);
+			return { ...slot, ...stateForSlot(matching) };
+		}),
+	};
+}
+
+export async function cmdSlots(args: string[]) {
+	const taskId = args[0];
+	const flags = parseFlags(args.slice(1));
+	if (!taskId || Object.keys(flags).some((flag) => flag !== "run"))
+		die("Usage: task slots <task-id> [--run <run-id>]");
+	if (flags.run?.match(/[\s=>]/))
+		usageError("Slot run must not contain whitespace, '=' or '>'.");
+	const issuePath = findIssueFile(taskId);
+	if (!issuePath) die(`Issue not found for '${taskId}'`);
+	const { data } = readIssue(issuePath);
+	const result = {
+		task_id: taskId,
+		...slotReports(
+			data,
+			readAssignments().filter((assignment) => assignment.task_id === taskId),
+			flags.run,
+		),
+	};
+
+	console.log(
+		`Slots for '${taskId}' (${result.fixture ?? "implicit primary"})`,
+	);
+	for (const slot of result.slots)
+		console.log(
+			`  ${slot.slot}: ${slot.state}${slot.assignment ? ` (${slot.assignment.owner})` : ""}`,
+		);
+	return result;
 }
 
 // ── task show ────────────────────────────────────────────────────────────────

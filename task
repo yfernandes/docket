@@ -3,16 +3,16 @@
 
 // src/commands.ts
 import {
-  existsSync as existsSync3,
+  existsSync as existsSync4,
   mkdirSync as mkdirSync2,
   readdirSync as readdirSync2,
-  readFileSync as readFileSync3,
+  readFileSync as readFileSync4,
   realpathSync,
   renameSync as renameSync2,
   statSync as statSync2,
   writeFileSync as writeFileSync2
 } from "fs";
-import { basename as basename3, join as join3 } from "path";
+import { basename as basename3, join as join4 } from "path";
 import { createInterface } from "readline";
 var {$: $2 } = globalThis.Bun;
 
@@ -241,6 +241,82 @@ function policyApplies(policy2, assignment) {
   return policy2 === "all" || policy2 === "agents" && assignment?.owner_type === "agent";
 }
 
+// src/fixtures.ts
+import { existsSync as existsSync2, readFileSync as readFileSync2 } from "fs";
+import { join as join2 } from "path";
+var NAME = /^[a-z][a-z0-9-]*$/;
+function invalid(fixture, message) {
+  throw new Error(`Fixture '${fixture}' is invalid: ${message}`);
+}
+function fixturePath(id) {
+  if (!NAME.test(id))
+    throw new Error(`Fixture id '${id}' must use lowercase letters, digits, and hyphens, starting with a letter.`);
+  return join2(ROOT, "fixtures", `${id}.json`);
+}
+function loadFixture(id) {
+  const path = fixturePath(id);
+  if (!existsSync2(path))
+    throw new Error(`Fixture '${id}' was not found at fixtures/${id}.json.`);
+  let value;
+  try {
+    value = JSON.parse(readFileSync2(path, "utf-8"));
+  } catch (error) {
+    throw new Error(`Fixture '${id}' could not be parsed as JSON: ${error.message}`);
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    invalid(id, "the root must be a JSON object.");
+  const record = value;
+  if (record.id !== id)
+    invalid(id, `id must equal '${id}'.`);
+  if (record.description !== undefined && typeof record.description !== "string")
+    invalid(id, "description must be a string when provided.");
+  if (!Array.isArray(record.roles) || record.roles.length === 0)
+    invalid(id, "roles must be a non-empty array.");
+  const names = new Set;
+  const roles = record.roles.map((value2, index) => {
+    if (!value2 || typeof value2 !== "object" || Array.isArray(value2))
+      invalid(id, `roles[${index}] must be an object.`);
+    const role = value2;
+    if (typeof role.role !== "string" || !NAME.test(role.role))
+      invalid(id, `roles[${index}].role must use lowercase letters, digits, and hyphens, starting with a letter.`);
+    if (names.has(role.role))
+      invalid(id, `role '${role.role}' is duplicated.`);
+    names.add(role.role);
+    if (!Number.isInteger(role.slots) || role.slots <= 0)
+      invalid(id, `roles[${index}].slots must be a positive integer.`);
+    if (typeof role.exclusive !== "boolean")
+      invalid(id, `roles[${index}].exclusive must be true or false.`);
+    return {
+      role: role.role,
+      slots: role.slots,
+      exclusive: role.exclusive
+    };
+  });
+  return {
+    id,
+    ...typeof record.description === "string" ? { description: record.description } : {},
+    roles
+  };
+}
+function fixtureForTask(data) {
+  const selected = data.fixture;
+  if (selected === undefined || selected === null || selected === "")
+    return null;
+  if (typeof selected !== "string")
+    throw new Error("Task fixture must be a fixture id string.");
+  return loadFixture(selected);
+}
+function slotsForFixture(fixture) {
+  return fixture.roles.flatMap((role) => Array.from({ length: role.slots }, (_, index) => ({
+    role: role.role,
+    slot: `${role.role}-${index + 1}`,
+    exclusive: role.exclusive
+  })));
+}
+function roleForFixture(fixture, roleName) {
+  return fixture.roles.find((role) => role.role === roleName) ?? null;
+}
+
 // src/frontmatter.ts
 function parseFrontmatter(content) {
   const lines = content.split(`
@@ -304,24 +380,24 @@ function serializeFrontmatter(data) {
 
 // src/repository.ts
 import {
-  existsSync as existsSync2,
+  existsSync as existsSync3,
   mkdirSync,
   readdirSync,
-  readFileSync as readFileSync2,
+  readFileSync as readFileSync3,
   renameSync,
   rmSync,
   statSync,
   writeFileSync
 } from "fs";
-import { basename as basename2, isAbsolute, join as join2, relative } from "path";
+import { basename as basename2, isAbsolute, join as join3, relative } from "path";
 var {$ } = globalThis.Bun;
-var ASSIGNMENTS_PATH = join2(ROOT, "assignments.yaml");
-var TAKE_LOCK_PATH = join2(ROOT, ".docket-take.lock");
-var TAKE_LOCK_METADATA_PATH = join2(TAKE_LOCK_PATH, "owner.json");
+var ASSIGNMENTS_PATH = join3(ROOT, "assignments.yaml");
+var TAKE_LOCK_PATH = join3(ROOT, ".docket-take.lock");
+var TAKE_LOCK_METADATA_PATH = join3(TAKE_LOCK_PATH, "owner.json");
 var TAKE_LOCK_STALE_MS = 5 * 60000;
 function readTakeLockMetadata() {
   try {
-    return JSON.parse(readFileSync2(TAKE_LOCK_METADATA_PATH, "utf-8"));
+    return JSON.parse(readFileSync3(TAKE_LOCK_METADATA_PATH, "utf-8"));
   } catch {
     return null;
   }
@@ -397,7 +473,7 @@ function acquireTakeLock(agent) {
   if (ageMs < TAKE_LOCK_STALE_MS || processIsAlive(metadata?.pid)) {
     operationalError(takeLockMessage(metadata, ageMs), "TAKE_LOCK_HELD", takeLockDetails(metadata, ageMs));
   }
-  const stalePath = join2(ROOT, `.docket-take.lock.stale-${process.pid}-${crypto.randomUUID()}`);
+  const stalePath = join3(ROOT, `.docket-take.lock.stale-${process.pid}-${crypto.randomUUID()}`);
   try {
     renameSync(TAKE_LOCK_PATH, stalePath);
   } catch (error) {
@@ -431,9 +507,9 @@ async function withTakeLock(agent, action) {
   }
 }
 function readAssignments() {
-  if (!existsSync2(ASSIGNMENTS_PATH))
+  if (!existsSync3(ASSIGNMENTS_PATH))
     return [];
-  return parseAssignmentsYaml(readFileSync2(ASSIGNMENTS_PATH, "utf-8"));
+  return parseAssignmentsYaml(readFileSync3(ASSIGNMENTS_PATH, "utf-8"));
 }
 function parseAssignmentsYaml(content) {
   const lines = content.split(`
@@ -531,13 +607,13 @@ function writeAssignments(records) {
   writeFileSync(ASSIGNMENTS_PATH, serializeAssignments(records));
 }
 function walkIssues() {
-  const issuesDir = join2(ROOT, "issues");
+  const issuesDir = join3(ROOT, "issues");
   const results = [];
   function walk(dir) {
     for (const entry of readdirSync(dir)) {
       if (entry === "templates")
         continue;
-      const full = join2(dir, entry);
+      const full = join3(dir, entry);
       if (statSync(full).isDirectory()) {
         walk(full);
         continue;
@@ -546,7 +622,7 @@ function walkIssues() {
         results.push(full);
     }
   }
-  if (existsSync2(issuesDir))
+  if (existsSync3(issuesDir))
     walk(issuesDir);
   return results;
 }
@@ -563,7 +639,7 @@ function findIssueFiles(taskId) {
   }).sort((left, right) => relPath(left).localeCompare(relPath(right)));
 }
 function readIssue(filePath) {
-  const { data, body } = parseFrontmatter(readFileSync2(filePath, "utf-8"));
+  const { data, body } = parseFrontmatter(readFileSync3(filePath, "utf-8"));
   return { data, body };
 }
 function writeIssue(filePath, data, body) {
@@ -571,7 +647,7 @@ function writeIssue(filePath, data, body) {
 ` + body);
 }
 function scopeFromPath(filePath) {
-  return relative(join2(ROOT, "issues"), filePath).split("/")[0];
+  return relative(join3(ROOT, "issues"), filePath).split("/")[0];
 }
 function slugFromTitle(title) {
   return title.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-");
@@ -595,15 +671,15 @@ function snapshotFiles(paths) {
     return true;
   }).map((path) => ({
     path,
-    existed: existsSync2(path),
-    content: existsSync2(path) ? readFileSync2(path, "utf-8") : null
+    existed: existsSync3(path),
+    content: existsSync3(path) ? readFileSync3(path, "utf-8") : null
   }));
 }
 function restoreFiles(snapshots) {
   for (const snapshot of snapshots) {
     if (snapshot.existed) {
       writeFileSync(snapshot.path, snapshot.content ?? "");
-    } else if (existsSync2(snapshot.path)) {
+    } else if (existsSync3(snapshot.path)) {
       rmSync(snapshot.path, { force: true });
     }
   }
@@ -650,9 +726,9 @@ async function commitWithRollback(message, touchedPaths, mutate) {
     throw error;
   }
 }
-var FLOW_PATH = join2(ROOT, "flow.md");
+var FLOW_PATH = join3(ROOT, "flow.md");
 function readFlow() {
-  return readFileSync2(FLOW_PATH, "utf-8");
+  return readFileSync3(FLOW_PATH, "utf-8");
 }
 function writeFlow(content) {
   writeFileSync(FLOW_PATH, content);
@@ -977,11 +1053,11 @@ function parseTemplateArg(args) {
   return { templateName, positional };
 }
 function resolveIssueTemplate(templateName) {
-  const templatePath = join3(ROOT, "issues", "templates", `${templateName}.md`);
-  if (!existsSync3(templatePath)) {
+  const templatePath = join4(ROOT, "issues", "templates", `${templateName}.md`);
+  if (!existsSync4(templatePath)) {
     die2(`Template not found: ${relPath(templatePath)}`);
   }
-  return readFileSync3(templatePath, "utf-8");
+  return readFileSync4(templatePath, "utf-8");
 }
 async function prompt(question) {
   return new Promise((resolve) => {
@@ -1009,7 +1085,7 @@ async function cmdLint() {
     warnings++;
   };
   const ok = (msg) => console.log(`OK: ${msg}`);
-  if (!existsSync3(FLOW_PATH)) {
+  if (!existsSync4(FLOW_PATH)) {
     err("flow.md missing");
   } else {
     const flow = readFlow();
@@ -1089,11 +1165,16 @@ async function cmdLint() {
     for (const message of parseTaskLog(readIssue(filePath).body).errors) {
       err(`${rel}: ${message}`);
     }
+    try {
+      fixtureForTask(data);
+    } catch (error) {
+      err(`${rel}: ${error.message}`);
+    }
     const slug = basename3(filePath, ".md").replace(/^\d{4}-\d{2}-\d{2}-/, "");
     if (data.id && data.id !== slug)
       err(`${rel}: id '${data.id}' does not match filename slug '${slug}'`);
   }
-  if (!existsSync3(ASSIGNMENTS_PATH)) {
+  if (!existsSync4(ASSIGNMENTS_PATH)) {
     warn("assignments.yaml not found");
   } else {
     const assignments = readAssignments();
@@ -1143,11 +1224,11 @@ async function cmdNew(args) {
     die2("Usage: task new <scope> <title> [--template <name>]");
   const title = titleParts.join(" ");
   const slug = slugFromTitle(title);
-  const scopeDir = join3(ROOT, "issues", scope);
-  if (!existsSync3(scopeDir))
+  const scopeDir = join4(ROOT, "issues", scope);
+  if (!existsSync4(scopeDir))
     mkdirSync2(scopeDir, { recursive: true });
-  const filePath = join3(scopeDir, `${slug}.md`);
-  if (existsSync3(filePath))
+  const filePath = join4(scopeDir, `${slug}.md`);
+  if (existsSync4(filePath))
     die2(`Already exists: ${relPath(filePath)}`);
   const templateContent = resolveIssueTemplate(templateName);
   const { body: templateBody } = parseFrontmatter(templateContent);
@@ -1200,7 +1281,7 @@ async function cmdClaim(args) {
     if (value?.match(/[\s=>]/))
       usageError(`Claim ${field} must not contain whitespace, '=' or '>'.`);
   }
-  const record = await claimTask(taskId, {
+  const options = {
     agentId,
     owner,
     ownerType,
@@ -1211,7 +1292,8 @@ async function cmdClaim(args) {
     role: participant ? flags.role ?? null : null,
     slot: participant ? flags.slot ?? null : null,
     runId: participant ? flags.run ?? null : null
-  });
+  };
+  const record = participant ? await withTakeLock(agentId, () => claimTask(taskId, options)) : await claimTask(taskId, options);
   console.log(`Claimed '${taskId}' by '${owner}'`);
   return { task_id: taskId, assignment: record };
 }
@@ -1257,6 +1339,24 @@ function writeExpiredClaimIssues(expired, assignments, expiredAt) {
   }
 }
 async function claimTask(taskId, options, assignments = readAssignments(), expired = [], message = `claim(${taskId}): ${options.owner}`) {
+  const issuePath = findIssueFile(taskId);
+  let fixtureId = null;
+  let roleCapacity = null;
+  if (options.assignmentType === "participant") {
+    if (!issuePath)
+      die2(`Issue not found for '${taskId}'`);
+    const fixture = fixtureForTask(readIssue(issuePath).data);
+    if (!fixture)
+      die2(`Task '${taskId}' does not select a crew fixture; participant claims require fixture: <id>.`);
+    const role = roleForFixture(fixture, options.role ?? "");
+    if (!role)
+      die2(`Fixture '${fixture.id}' does not define role '${options.role}'.`);
+    const expectedSlots = slotsForFixture(fixture).filter((slot) => slot.role === role.role).map((slot) => slot.slot);
+    if (!expectedSlots.includes(options.slot ?? ""))
+      die2(`Fixture '${fixture.id}' role '${role.role}' accepts slots: ${expectedSlots.join(", ")}.`);
+    fixtureId = fixture.id;
+    roleCapacity = role.slots;
+  }
   const conflict = assignments.find((assignment) => {
     if (assignment.task_id !== taskId || assignment.status !== "active")
       return false;
@@ -1266,8 +1366,12 @@ async function claimTask(taskId, options, assignments = readAssignments(), expir
   });
   if (conflict)
     die2(`Task '${taskId}' already claimed by '${conflict.owner}'`);
+  if (options.assignmentType === "participant") {
+    const activeRoleClaims = assignments.filter((assignment) => assignment.task_id === taskId && assignment.status === "active" && isParticipant(assignment) && assignment.role === options.role);
+    if (activeRoleClaims.length >= roleCapacity)
+      die2(`Fixture '${fixtureId}' role '${options.role}' is at capacity (${roleCapacity} active slot${roleCapacity === 1 ? "" : "s"}).`);
+  }
   const expiredTaskIds = new Set(expired.map(({ assignment }) => assignment.task_id));
-  const issuePath = findIssueFile(taskId);
   if (issuePath) {
     const { data } = readIssue(issuePath);
     const claimableStatuses = new Set([
@@ -1647,7 +1751,7 @@ async function applicationWorktree(assignment) {
     return {
       warning: "No application worktree was recorded for this active claim. Re-claim with --worktree <application-repository> or use commits add after recording the hash."
     };
-  if (!existsSync3(assignment.worktree))
+  if (!existsSync4(assignment.worktree))
     return {
       warning: `Recorded application worktree '${assignment.worktree}' no longer exists. Use commits add with an explicit hash after restoring the repository.`
     };
@@ -1857,8 +1961,8 @@ async function cmdClose(args) {
   const { data, body } = readIssue(issuePath);
   data.status = wontfix ? "wontfix" : "done";
   data.closed_at = today();
-  const doneDir = join3(ROOT, "issues", scope, "done");
-  const newPath = join3(doneDir, `${today()}-${taskId}.md`);
+  const doneDir = join4(ROOT, "issues", scope, "done");
+  const newPath = join4(doneDir, `${today()}-${taskId}.md`);
   const assignments = readAssignments();
   const idx = flags.claim ? activeClaimIndex(assignments, taskId, flags.claim) : activePrimaryIndex(assignments, taskId);
   if (idx === -1 && flags.claim)
@@ -1906,7 +2010,7 @@ async function cmdClose(args) {
     flags.__evidence = JSON.stringify(evidence);
   }
   await commitWithRollback(`close(${taskId})`, [issuePath, newPath, FLOW_PATH, ASSIGNMENTS_PATH], async () => {
-    if (!existsSync3(doneDir))
+    if (!existsSync4(doneDir))
       mkdirSync2(doneDir, { recursive: true });
     let updatedBody = body;
     for (const commit of JSON.parse(flags.__evidence ?? "[]"))
@@ -2111,19 +2215,37 @@ async function cmdTake(args) {
   if (!agentId || !Number.isInteger(leaseMinutes) || leaseMinutes <= 0) {
     die2("Usage: task take --agent <agent-id> --lease <minutes> [--status <status>] [--scope <scope>] [--owner <owner>] [--tag <tag>] [--worktree <path>] [--branch <branch>]");
   }
+  if (flags.run && !flags.role)
+    die2("Usage: task take --role <role> is required when --run is provided");
+  if (flags.role?.match(/[\s=>]/) || flags.run?.match(/[\s=>]/))
+    usageError("Take role and run must not contain whitespace, '=' or '>'.");
   return withTakeLock(agentId, async () => {
     const assignments = readAssignments();
     const now = new Date;
     const expired = expireEligibleClaims(assignments, now);
     const expiredTaskIds = new Set(expired.map(({ assignment: assignment2 }) => assignment2.task_id));
-    const { status = "ready-for-agent", ...selectionFlags } = flags;
+    const { status = "ready-for-agent", role, run, ...selectionFlags } = flags;
     const candidates = filterIssueRows(filteredIssues({}).map((issue) => expiredTaskIds.has(issue.id) ? {
       ...issue,
       status: "ready-for-agent",
       owner: "human",
       owner_type: "human",
       agent_id: null
-    } : issue).filter((issue) => issue.status === status), selectionFlags).toSorted(compareIssues);
+    } : issue).filter((issue) => issue.status === status || Boolean(role) && issue.status === "in-progress").filter((issue) => {
+      if (!role)
+        return true;
+      const issuePath2 = findIssueFile(issue.id);
+      if (!issuePath2)
+        return false;
+      const fixture2 = fixtureForTask(readIssue(issuePath2).data);
+      if (!fixture2)
+        return false;
+      const selectedRole = roleForFixture(fixture2, role);
+      if (!selectedRole)
+        return false;
+      const activeSlots = new Set(assignments.filter((assignment2) => assignment2.task_id === issue.id && assignment2.status === "active" && isParticipant(assignment2) && assignment2.role === role).map((assignment2) => assignment2.slot));
+      return slotsForFixture(fixture2).some((slot2) => slot2.role === role && !activeSlots.has(slot2.slot));
+    }), selectionFlags).toSorted(compareIssues);
     const task = candidates[0];
     if (!task) {
       await commitExpiredClaims(assignments, expired, `take: expire ${expired.length} lease(s)`, now.toISOString());
@@ -2131,6 +2253,9 @@ async function cmdTake(args) {
       return { task: null };
     }
     const owner = agentId;
+    const issuePath = findIssueFile(task.id);
+    const fixture = role && issuePath ? fixtureForTask(readIssue(issuePath).data) : null;
+    const slot = fixture && role ? slotsForFixture(fixture).find((candidate) => candidate.role === role && !assignments.some((assignment2) => assignment2.task_id === task.id && assignment2.status === "active" && isParticipant(assignment2) && assignment2.slot === candidate.slot))?.slot ?? null : null;
     const assignment = await claimTask(task.id, {
       agentId,
       owner,
@@ -2138,16 +2263,70 @@ async function cmdTake(args) {
       worktree: flags.worktree ?? null,
       branch: flags.branch ?? null,
       leaseMinutes,
-      assignmentType: "primary",
-      role: null,
-      slot: null,
-      runId: null
+      assignmentType: role ? "participant" : "primary",
+      role: role ?? null,
+      slot,
+      runId: run ?? null
     }, assignments, expired, `take(${task.id}): ${owner}`);
-    const issuePath = findIssueFile(task.id);
-    const claimedTask = issuePath ? readIssue(issuePath).data : publicIssue(task);
+    const claimedIssuePath = findIssueFile(task.id);
+    const claimedTask = claimedIssuePath ? readIssue(claimedIssuePath).data : publicIssue(task);
     console.log(`Took '${task.id}' as '${owner}'`);
     return { task: claimedTask, assignment };
   });
+}
+function stateForSlot(assignments) {
+  const active = assignments.find((assignment) => assignment.status === "active");
+  if (active)
+    return { state: "active", assignment: active };
+  const settled = assignments.filter((assignment) => assignment.status === "completed" || assignment.status === "expired").toSorted((left, right) => (right.completed_at ?? right.claimed_at).localeCompare(left.completed_at ?? left.claimed_at))[0];
+  if (!settled)
+    return { state: "free", assignment: null };
+  return { state: settled.status, assignment: settled };
+}
+function slotReports(data, assignments, runId) {
+  const fixture = fixtureForTask(data);
+  if (!fixture) {
+    const primary = assignments.filter((assignment) => !isParticipant(assignment));
+    const state = stateForSlot(primary);
+    return {
+      fixture: null,
+      slots: [
+        {
+          role: "primary",
+          slot: "primary-1",
+          exclusive: true,
+          ...state
+        }
+      ]
+    };
+  }
+  return {
+    fixture: fixture.id,
+    slots: slotsForFixture(fixture).map((slot) => {
+      const matching = assignments.filter((assignment) => isParticipant(assignment) && assignment.role === slot.role && assignment.slot === slot.slot && (runId === undefined || assignment.run_id === runId));
+      return { ...slot, ...stateForSlot(matching) };
+    })
+  };
+}
+async function cmdSlots(args) {
+  const taskId = args[0];
+  const flags = parseFlags(args.slice(1));
+  if (!taskId || Object.keys(flags).some((flag) => flag !== "run"))
+    die2("Usage: task slots <task-id> [--run <run-id>]");
+  if (flags.run?.match(/[\s=>]/))
+    usageError("Slot run must not contain whitespace, '=' or '>'.");
+  const issuePath = findIssueFile(taskId);
+  if (!issuePath)
+    die2(`Issue not found for '${taskId}'`);
+  const { data } = readIssue(issuePath);
+  const result = {
+    task_id: taskId,
+    ...slotReports(data, readAssignments().filter((assignment) => assignment.task_id === taskId), flags.run)
+  };
+  console.log(`Slots for '${taskId}' (${result.fixture ?? "implicit primary"})`);
+  for (const slot of result.slots)
+    console.log(`  ${slot.slot}: ${slot.state}${slot.assignment ? ` (${slot.assignment.owner})` : ""}`);
+  return result;
 }
 async function cmdShow(args) {
   const taskId = args[0];
@@ -2324,8 +2503,8 @@ async function cmdIngest(args) {
     console.log("Issue Scratchpad is empty.");
     return { issues: [], processed: 0 };
   }
-  const issuesDir = join3(ROOT, "issues");
-  const scopes = existsSync3(issuesDir) ? readdirSync2(issuesDir).filter((e) => statSync2(join3(issuesDir, e)).isDirectory() && e !== "templates") : [];
+  const issuesDir = join4(ROOT, "issues");
+  const scopes = existsSync4(issuesDir) ? readdirSync2(issuesDir).filter((e) => statSync2(join4(issuesDir, e)).isDirectory() && e !== "templates") : [];
   const SYSTEM_PROMPT = `You are a task management assistant. Classify each input bullet point from an issue scratchpad.
 
 Available scopes: ${scopes.join(", ")}
@@ -2370,10 +2549,10 @@ Clarification: ${answer}`, apiKey);
       continue;
     }
     if (result.type === "issue" && result.scope && result.slug && result.markdown) {
-      const scopeDir = join3(ROOT, "issues", result.scope);
-      if (!existsSync3(scopeDir))
+      const scopeDir = join4(ROOT, "issues", result.scope);
+      if (!existsSync4(scopeDir))
         mkdirSync2(scopeDir, { recursive: true });
-      const filePath = join3(scopeDir, `${result.slug}.md`);
+      const filePath = join4(scopeDir, `${result.slug}.md`);
       writeFileSync2(filePath, result.markdown);
       newFiles.push(filePath);
       console.log(`  Created: ${relPath(filePath)}`);
@@ -2450,6 +2629,10 @@ Commands:
     --tag <t>               Filter by tag
     --worktree <path>       Optional agent worktree
     --branch <name>         Optional agent branch
+    --role <role>           Claim the first available slot for this fixture role
+    --run <run-id>          Optional participant run attribution (requires --role)
+  slots <task-id>           Report calculated fixture slot state
+    --run <run-id>          Limit participant state to one run
     --json                  JSON output
   show <task-id>            Show complete task context
     --json                  JSON output
@@ -2507,6 +2690,8 @@ async function main(args = process.argv.slice(2)) {
         return cmdNext(rest);
       case "take":
         return cmdTake(rest);
+      case "slots":
+        return cmdSlots(rest);
       case "show":
         return cmdShow(rest);
       case "note":

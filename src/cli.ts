@@ -18,6 +18,7 @@ import {
 	cmdRender,
 	cmdRenew,
 	cmdShow,
+	cmdSlots,
 	cmdTake,
 	cmdTriage,
 } from "./commands";
@@ -80,6 +81,10 @@ Commands:
     --tag <t>               Filter by tag
     --worktree <path>       Optional agent worktree
     --branch <name>         Optional agent branch
+    --role <role>           Claim the first available slot for this fixture role
+    --run <run-id>          Optional participant run attribution (requires --role)
+  slots <task-id>           Report calculated fixture slot state
+    --run <run-id>          Limit participant state to one run
     --json                  JSON output
   show <task-id>            Show complete task context
     --json                  JSON output
@@ -138,6 +143,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 				return cmdNext(rest);
 			case "take":
 				return cmdTake(rest);
+			case "slots":
+				return cmdSlots(rest);
 			case "show":
 				return cmdShow(rest);
 			case "note":

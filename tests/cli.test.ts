@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	chmodSync,
 	copyFileSync,
+	cpSync,
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
@@ -10,7 +11,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { HELP } from "../src/cli";
 import { appendNote } from "../src/task-log";
 
@@ -228,11 +229,13 @@ function createLegacyFixture(): string {
 	mkdirSync(join(fixture, "issues", "automation"), { recursive: true });
 	mkdirSync(join(fixture, "issues", "templates"), { recursive: true });
 	mkdirSync(join(fixture, "src"), { recursive: true });
+	mkdirSync(join(fixture, "fixtures"), { recursive: true });
 	for (const file of [
 		"cli.ts",
 		"commands.ts",
 		"config.ts",
 		"frontmatter.ts",
+		"fixtures.ts",
 		"protocol.ts",
 		"repository.ts",
 		"runtime.ts",
@@ -242,6 +245,10 @@ function createLegacyFixture(): string {
 		copyFileSync(join(root, "src", file), join(fixture, "src", file));
 	}
 	copyFileSync(join(root, "task"), join(fixture, "task"));
+	copyFileSync(
+		join(root, "fixtures", "adversarial-review.json"),
+		join(fixture, "fixtures", "adversarial-review.json"),
+	);
 	writeFileSync(join(fixture, "flow.md"), FLOW);
 	writeFileSync(
 		join(fixture, "issues", "templates", "issue.md"),
@@ -306,6 +313,17 @@ function withFixture(assertion: (fixture: string) => void): void {
 	}
 }
 
+function selectAdversarialReviewFixture(fixture: string): void {
+	const issuePath = join(fixture, "issues", "automation", "legacy-task.md");
+	writeFileSync(
+		issuePath,
+		readFileSync(issuePath, "utf-8").replace(
+			"closed_at: null",
+			"fixture: adversarial-review\nclosed_at: null",
+		),
+	);
+}
+
 function commitIn(directory: string, message: string): string {
 	expect(Bun.spawnSync(["git", "add", "."], { cwd: directory }).exitCode).toBe(
 		0,
@@ -335,6 +353,38 @@ function createApplicationFixture(taskId: string): {
 	});
 	writeFileSync(join(directory, "implementation.txt"), "implemented\n");
 	return { directory, hash: commitIn(directory, `implement ${taskId}`) };
+}
+
+function createUpdateArchive(): string {
+	const directory = mkdtempSync(join(tmpdir(), "docket-update-archive-"));
+	const source = join(directory, "docket-fixtures");
+	mkdirSync(source);
+	for (const file of [
+		"task",
+		"README.md",
+		"RULES.md",
+		"SETUP.md",
+		"STRUCTURE.md",
+		"flow.md",
+	])
+		copyFileSync(join(root, file), join(source, file));
+	for (const directoryName of ["skills", "scripts", "fixtures"])
+		cpSync(join(root, directoryName), join(source, directoryName), {
+			recursive: true,
+		});
+	cpSync(
+		join(root, "issues", "templates"),
+		join(source, "issues", "templates"),
+		{
+			recursive: true,
+		},
+	);
+	const archive = join(directory, "docket-fixtures.tar.gz");
+	expect(
+		Bun.spawnSync(["tar", "-czf", archive, "-C", directory, "docket-fixtures"])
+			.exitCode,
+	).toBe(0);
+	return archive;
 }
 
 describe("legacy human CLI compatibility", () => {
@@ -1321,6 +1371,7 @@ describe("participant roles and outcomes", () => {
 	for (const entrypoint of ["source", "bundled"] as const) {
 		test(`${entrypoint} keeps one primary while distinct participant slots coexist and finish independently`, () => {
 			withFixture((fixture) => {
+				selectAdversarialReviewFixture(fixture);
 				expect(
 					run(fixture, entrypoint, ["claim", "legacy-task", "--owner", "yago"])
 						.exitCode,
@@ -1334,7 +1385,7 @@ describe("participant roles and outcomes", () => {
 					"--role",
 					"reviewer",
 					"--slot",
-					"review-1",
+					"reviewer-1",
 					"--run",
 					"cycle-a",
 					"--lease",
@@ -1351,7 +1402,7 @@ describe("participant roles and outcomes", () => {
 				).toMatchObject({
 					assignment_type: "participant",
 					role: "reviewer",
-					slot: "review-1",
+					slot: "reviewer-1",
 					run_id: "cycle-a",
 					claim_id: firstClaim,
 				});
@@ -1364,7 +1415,7 @@ describe("participant roles and outcomes", () => {
 					"--role",
 					"reviewer",
 					"--slot",
-					"review-2",
+					"reviewer-2",
 					"--run",
 					"cycle-a",
 					"--lease",
@@ -1385,7 +1436,7 @@ describe("participant roles and outcomes", () => {
 					"--role",
 					"reviewer",
 					"--slot",
-					"review-1",
+					"reviewer-1",
 					"--lease",
 					"60",
 					"--json",
@@ -1458,6 +1509,7 @@ describe("participant roles and outcomes", () => {
 
 		test(`${entrypoint} rejects a stale participant finish after expiry and replacement`, () => {
 			withFixture((fixture) => {
+				selectAdversarialReviewFixture(fixture);
 				const old = run(fixture, entrypoint, [
 					"claim",
 					"legacy-task",
@@ -1466,7 +1518,7 @@ describe("participant roles and outcomes", () => {
 					"--role",
 					"reviewer",
 					"--slot",
-					"review-1",
+					"reviewer-1",
 					"--run",
 					"cycle-a",
 					"--lease",
@@ -1497,7 +1549,7 @@ describe("participant roles and outcomes", () => {
 					"--role",
 					"reviewer",
 					"--slot",
-					"review-1",
+					"reviewer-1",
 					"--run",
 					"cycle-b",
 					"--lease",
@@ -1526,6 +1578,7 @@ describe("participant roles and outcomes", () => {
 
 	test("finish rolls back its participant completion and optional Task Log note together", () => {
 		withFixture((fixture) => {
+			selectAdversarialReviewFixture(fixture);
 			const participant = run(fixture, "source", [
 				"claim",
 				"legacy-task",
@@ -1534,7 +1587,7 @@ describe("participant roles and outcomes", () => {
 				"--role",
 				"reviewer",
 				"--slot",
-				"review-1",
+				"reviewer-1",
 				"--run",
 				"cycle-a",
 				"--lease",
@@ -1565,6 +1618,212 @@ describe("participant roles and outcomes", () => {
 			).not.toBe(0);
 			expect(paths.map((path) => readFileSync(path, "utf-8"))).toEqual(before);
 		});
+	});
+});
+
+describe("crew fixtures and slot visibility", () => {
+	for (const entrypoint of ["source", "bundled"] as const) {
+		test(`${entrypoint} reports deterministic slots and enforces reviewer capacity`, () => {
+			withFixture((fixture) => {
+				selectAdversarialReviewFixture(fixture);
+				const initial = run(fixture, entrypoint, [
+					"slots",
+					"legacy-task",
+					"--json",
+				]);
+				expect(initial.exitCode).toBe(0);
+				expect(jsonResult(initial).data).toMatchObject({
+					fixture: "adversarial-review",
+					slots: [
+						{ slot: "implementer-1", state: "free" },
+						{ slot: "reviewer-1", state: "free" },
+						{ slot: "reviewer-2", state: "free" },
+						{ slot: "fixer-1", state: "free" },
+					],
+				});
+
+				const first = run(fixture, entrypoint, [
+					"take",
+					"--agent",
+					"reviewer-one",
+					"--lease",
+					"60",
+					"--status",
+					"open",
+					"--role",
+					"reviewer",
+					"--run",
+					"cycle-a",
+					"--json",
+				]);
+				expect(first.exitCode).toBe(0);
+				const firstAssignment = jsonResult(first).data.assignment as Record<
+					string,
+					unknown
+				>;
+				expect(firstAssignment).toMatchObject({ slot: "reviewer-1" });
+
+				const second = run(fixture, entrypoint, [
+					"take",
+					"--agent",
+					"reviewer-two",
+					"--lease",
+					"60",
+					"--role",
+					"reviewer",
+					"--run",
+					"cycle-a",
+					"--json",
+				]);
+				expect(second.exitCode).toBe(0);
+				const secondAssignment = jsonResult(second).data.assignment as Record<
+					string,
+					unknown
+				>;
+				expect(secondAssignment).toMatchObject({ slot: "reviewer-2" });
+
+				const third = run(fixture, entrypoint, [
+					"claim",
+					"legacy-task",
+					"--agent",
+					"reviewer-three",
+					"--role",
+					"reviewer",
+					"--slot",
+					"reviewer-3",
+					"--lease",
+					"60",
+					"--json",
+				]);
+				expect(third.exitCode).toBe(1);
+				expect(jsonResult(third).error.message).toContain(
+					"reviewer-1, reviewer-2",
+				);
+
+				const firstClaim = String(firstAssignment.claim_id);
+				expect(
+					run(fixture, entrypoint, [
+						"finish",
+						"legacy-task",
+						"--claim",
+						firstClaim,
+						"--json",
+					]).exitCode,
+				).toBe(0);
+				const secondClaim = String(secondAssignment.claim_id);
+				const assignmentsPath = join(fixture, "assignments.yaml");
+				writeFileSync(
+					assignmentsPath,
+					readFileSync(assignmentsPath, "utf-8").replace(
+						new RegExp(
+							`(claim_id: ${secondClaim}\\n  claimed_at: .*\\n  )lease_until: .*`,
+						),
+						"$1lease_until: 2020-01-01T00:00:00.000Z",
+					),
+				);
+				expect(run(fixture, entrypoint, ["doctor"]).exitCode).toBe(0);
+				const settled = run(fixture, entrypoint, [
+					"slots",
+					"legacy-task",
+					"--run",
+					"cycle-a",
+					"--json",
+				]);
+				expect(settled.exitCode).toBe(0);
+				const settledSlots = jsonResult(settled).data.slots as Record<
+					string,
+					unknown
+				>[];
+				expect(
+					settledSlots.filter((slot) => slot.role === "reviewer"),
+				).toMatchObject([
+					{ slot: "reviewer-1", state: "completed" },
+					{ slot: "reviewer-2", state: "expired" },
+				]);
+
+				const legacy = createLegacyFixture();
+				try {
+					const implicit = run(legacy, entrypoint, [
+						"slots",
+						"legacy-task",
+						"--json",
+					]);
+					expect(implicit.exitCode).toBe(0);
+					expect(jsonResult(implicit).data).toMatchObject({
+						fixture: null,
+						slots: [{ slot: "primary-1", state: "free" }],
+					});
+				} finally {
+					rmSync(legacy, { recursive: true, force: true });
+				}
+			});
+		});
+	}
+
+	test("lint gives actionable fixture validation for malformed role names", () => {
+		withFixture((fixture) => {
+			selectAdversarialReviewFixture(fixture);
+			writeFileSync(
+				join(fixture, "fixtures", "adversarial-review.json"),
+				JSON.stringify({
+					id: "adversarial-review",
+					roles: [{ role: "not a role", slots: 0, exclusive: true }],
+				}),
+			);
+			const result = run(fixture, "source", ["lint"]);
+			expect(result.exitCode).toBe(1);
+			expect(result.stderr).toContain("roles[0].role must use lowercase");
+		});
+	});
+
+	test("setup installs bundled fixtures and updater preserves a user fixture", () => {
+		const fixture = mkdtempSync(join(tmpdir(), "docket-installer-"));
+		const archive = createUpdateArchive();
+		try {
+			expect(
+				Bun.spawnSync(["git", "init", "-q"], { cwd: fixture }).exitCode,
+			).toBe(0);
+			Bun.spawnSync(["git", "config", "user.email", "installer@example.test"], {
+				cwd: fixture,
+			});
+			Bun.spawnSync(["git", "config", "user.name", "Installer"], {
+				cwd: fixture,
+			});
+			writeFileSync(join(fixture, "README.md"), "host repository\n");
+			expect(
+				Bun.spawnSync(["git", "add", "."], { cwd: fixture }).exitCode,
+			).toBe(0);
+			expect(
+				Bun.spawnSync(["git", "commit", "-qm", "host"], { cwd: fixture })
+					.exitCode,
+			).toBe(0);
+			const env = {
+				...process.env,
+				DOCKET_ARCHIVE_URL: `file://${archive}`,
+			};
+			const setup = Bun.spawnSync(
+				["bash", join(root, "scripts", "setup.sh"), "--yes"],
+				{ cwd: fixture, env },
+			);
+			expect(setup.exitCode, setup.stderr.toString()).toBe(0);
+			const bundled = join(
+				fixture,
+				"tasks",
+				"fixtures",
+				"adversarial-review.json",
+			);
+			expect(existsSync(bundled)).toBe(true);
+			writeFileSync(bundled, '{"id":"user-owned"}\n');
+			const update = Bun.spawnSync(
+				["bash", join(root, "scripts", "update.sh"), "--yes"],
+				{ cwd: fixture, env },
+			);
+			expect(update.exitCode).toBe(0);
+			expect(readFileSync(bundled, "utf-8")).toBe('{"id":"user-owned"}\n');
+		} finally {
+			rmSync(fixture, { recursive: true, force: true });
+			rmSync(dirname(archive), { recursive: true, force: true });
+		}
 	});
 });
 

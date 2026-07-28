@@ -1,0 +1,9 @@
+{
+  "id": "adversarial-review",
+  "description": "One implementer, two reviewers, and one fixer",
+  "roles": [
+    { "role": "implementer", "slots": 1, "exclusive": true },
+    { "role": "reviewer", "slots": 2, "exclusive": false },
+    { "role": "fixer", "slots": 1, "exclusive": true }
+  ]
+}

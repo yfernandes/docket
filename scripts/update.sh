@@ -25,6 +25,7 @@ Update an existing docket install. This overwrites only distro-managed files:
   skills/
   issues/templates/
   scripts/
+  fixtures/ (new bundled fixture files only)
 
 It does not overwrite flow.md, assignments.yaml, live issues, backlog files, or
 done archives.
@@ -126,6 +127,7 @@ WARNING: this update may overwrite local changes to distro-managed docket files:
   $docket_dir/skills/
   $docket_dir/issues/templates/
   $docket_dir/scripts/
+  $docket_dir/fixtures/ (new bundled fixture files only)
 
 It will not overwrite:
   $docket_dir/flow.md
@@ -171,6 +173,21 @@ merge_dir "$tmpdir/skills" "$docket_dir/skills"
 merge_dir "$tmpdir/scripts" "$docket_dir/scripts"
 mkdir -p "$docket_dir/issues"
 merge_dir "$tmpdir/issues/templates" "$docket_dir/issues/templates"
+installed_fixtures=()
+if [ -d "$tmpdir/fixtures" ]; then
+  mkdir -p "$docket_dir/fixtures"
+  while IFS= read -r -d '' fixture; do
+    relative_fixture="${fixture#"$tmpdir/fixtures/"}"
+    destination="$docket_dir/fixtures/$relative_fixture"
+    if [ -e "$destination" ]; then
+      echo "Preserving existing fixture: fixtures/$relative_fixture"
+      continue
+    fi
+    mkdir -p "$(dirname "$destination")"
+    cp "$fixture" "$destination"
+    installed_fixtures+=("fixtures/$relative_fixture")
+  done < <(find "$tmpdir/fixtures" -type f -print0)
+fi
 chmod +x "$docket_dir/task"
 chmod +x "$docket_dir/scripts/setup.sh" "$docket_dir/scripts/update.sh"
 
@@ -185,6 +202,7 @@ stage_paths=(
 while IFS= read -r -d '' file; do
   stage_paths+=("${file#"$tmpdir/"}")
 done < <(find "$tmpdir/skills" "$tmpdir/issues/templates" "$tmpdir/scripts" -type f -print0)
+stage_paths+=("${installed_fixtures[@]}")
 
 git -C "$docket_dir" add -f -- "${stage_paths[@]}"
 

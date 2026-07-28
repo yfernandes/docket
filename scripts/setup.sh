@@ -153,6 +153,7 @@ elif [ -f "$tmpdir/docket.json" ]; then
 fi
 copy_path "$tmpdir/skills" "$DOCKET_DIR/skills"
 copy_path "$tmpdir/scripts" "$DOCKET_DIR/scripts"
+copy_path "$tmpdir/fixtures" "$DOCKET_DIR/fixtures"
 mkdir -p "$DOCKET_DIR/issues"
 copy_path "$tmpdir/issues/templates" "$DOCKET_DIR/issues/templates"
 
