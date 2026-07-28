@@ -22,16 +22,16 @@ Provide human-readable results and structured JSON with stable note and task pro
 
 ## Acceptance Criteria
 
-- [ ] Notes can be filtered by kind, task status, scope, and author.
-- [ ] Results include task ID, task path, note ID, kind, author, timestamp, and content.
-- [ ] Active and archived tasks are searched.
-- [ ] Human output is concise enough for project-manager review.
-- [ ] JSON output has stable ordering and provenance.
-- [ ] Free-form human notes do not break parsing or structured queries.
-- [ ] Read-only queries never rewrite tasks.
-- [ ] Empty result sets succeed.
-- [ ] Fixture-based tests cover mixed structured and unstructured notes.
-- [ ] Existing commands remain compatible.
+- [x] Notes can be filtered by kind, task status, scope, and author.
+- [x] Results include task ID, task path, note ID, kind, author, timestamp, and content.
+- [x] Active and archived tasks are searched.
+- [x] Human output is concise enough for project-manager review.
+- [x] JSON output has stable ordering and provenance.
+- [x] Free-form human notes do not break parsing or structured queries.
+- [x] Read-only queries never rewrite tasks.
+- [x] Empty result sets succeed.
+- [x] Fixture-based tests cover mixed structured and unstructured notes.
+- [x] Existing commands remain compatible.
 
 ## Blocked by
 
@@ -52,6 +52,9 @@ Do not automatically create tasks from notes. Note promotion is a later, separat
 <!-- docket:task-log:start -->
 
 ### Commits
+
+- `8c2bcd0292ea` feat(aa-12): scout structured notes across tasks
+<!-- docket:commit hash=8c2bcd0292ea9bccf6b799c1f016d6ef453be832 -->
 
 ### Implementation Notes
 
