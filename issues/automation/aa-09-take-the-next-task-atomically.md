@@ -1,11 +1,11 @@
 ---
 id: aa-09-take-the-next-task-atomically
 title: AA-09 Take the next task atomically
-status: in-progress
+status: open
 priority: P2
-owner: codex-reconcile
-owner_type: agent
-agent_id: codex-reconcile
+owner: human
+owner_type: human
+agent_id: null
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -84,5 +84,8 @@ Reconciliation: all acceptance criteria were independently verified and implemen
 
 - 2026-07-28T07:10:32.077Z — codex-reconcile claimed task
 <!-- docket:event id=claim-2026-07-28T07:10:32.077Z -->
+
+- 2026-07-28T07:10:52.204Z — codex-reconcile released task
+<!-- docket:event id=release-2026-07-28T07:10:52.204Z -->
 
 <!-- docket:task-log:end -->
