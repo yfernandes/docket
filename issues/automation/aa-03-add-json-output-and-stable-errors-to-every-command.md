@@ -1,11 +1,11 @@
 ---
 id: aa-03-add-json-output-and-stable-errors-to-every-command
 title: AA-03 Add JSON output and stable errors to every command
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex
+owner_type: agent
+agent_id: codex
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -45,3 +45,18 @@ Do not add `show`, `next`, `take`, claim IDs, or crew behavior. This task establ
 
 - `docs/agent-automation-plan.md#json-command-protocol`
 - `docs/agent-automation-plan.md#aa-03--shared-output-and-error-protocol`
+
+## Task Log
+
+<!-- docket:task-log:start -->
+
+### Commits
+
+### Implementation Notes
+
+### History
+
+- 2026-07-28T00:00:17.206Z — codex claimed task
+<!-- docket:event id=claim-2026-07-28T00:00:17.206Z -->
+
+<!-- docket:task-log:end -->
