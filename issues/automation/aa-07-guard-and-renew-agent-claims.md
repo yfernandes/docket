@@ -1,11 +1,11 @@
 ---
 id: aa-07-guard-and-renew-agent-claims
 title: AA-07 Guard and renew agent claims
-status: open
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex-reconcile
+owner_type: agent
+agent_id: codex-reconcile
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -77,5 +77,8 @@ Reconciliation: implementation commit 40fae8c and the dedicated source/bundle cl
 
 - 2026-07-28T07:22:15.402Z — codex-aa07 released task
 <!-- docket:event id=release-2026-07-28T07:22:15.402Z -->
+
+- 2026-07-28T07:22:15.451Z — codex-reconcile claimed task
+<!-- docket:event id=claim-2026-07-28T07:22:15.451Z -->
 
 <!-- docket:task-log:end -->

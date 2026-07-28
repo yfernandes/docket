@@ -323,3 +323,15 @@
   claimed_at: 2026-07-28T07:21:50.291Z
   lease_until: 2026-07-28T09:21:50.284Z
   released_at: 2026-07-28T07:22:07.101Z
+- task_id: aa-07-guard-and-renew-agent-claims
+  status: active
+  owner: codex-reconcile
+  owner_type: agent
+  agent_id: codex-reconcile
+  worktree: /home/yago/projects/active/docket
+  branch: null
+  claim_id: 01dd865b-572a-4338-b6ce-962040272dbd
+  base_commit: 4a3ac26a4dc4864bd41d0e80bfb44c727c43cccc
+  claimed_at: 2026-07-28T07:22:15.451Z
+  lease_until: 2026-07-28T09:22:15.444Z
+  released_at: null
