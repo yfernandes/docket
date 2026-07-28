@@ -61,6 +61,12 @@ Do not add role slots, participant outcomes, deterministic selection, or local a
 
 Implemented claim IDs, strict --claim guards for release and close, renewable leases, and safe expiry-to-reclaim handling in 40fae8c. Verified bun test (58 passing), bun run build, bun run check, task lint, task doctor, and git diff --check. Closure remains blocked by the configured completion policy: this task has no separate application worktree, so related-commit evidence from the Docket ROOT is rejected; acceptance boxes also remain unchecked pending human review.
 
+#### 2026-07-28 07:09 UTC — blocker — codex-reconcile
+
+<!-- docket:note id=note-2026-07-28T07:09:40.348Z kind=blocker -->
+
+Reconciliation: implementation commit 40fae8c and the dedicated source/bundle claim-identity tests were reviewed. The historical active assignment predates claim IDs and has no claim_id or worktree, so a fresh guarded claim cannot be acquired or the old claim released with exact identity. No ownership workaround or close override used.
+
 ### History
 
 - 2026-07-28T06:00:02.910Z — task triaged needs-triage -> ready-for-agent
