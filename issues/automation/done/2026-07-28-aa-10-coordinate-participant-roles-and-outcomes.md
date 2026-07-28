@@ -1,14 +1,14 @@
 ---
 id: aa-10-coordinate-participant-roles-and-outcomes
 title: AA-10 Coordinate participant roles and outcomes
-status: in-progress
+status: done
 priority: P2
 owner: codex-reconcile
 owner_type: agent
 agent_id: codex-reconcile
 tags: [automation]
 created_at: 2026-07-14
-closed_at: null
+closed_at: 2026-07-28
 ---
 ## Type
 
@@ -92,5 +92,8 @@ Reconciliation: all acceptance criteria were independently verified and implemen
 
 - 2026-07-28T07:23:12.244Z — codex-reconcile claimed task
 <!-- docket:event id=claim-2026-07-28T07:23:12.244Z -->
+
+- 2026-07-28 — task closed by codex-reconcile
+<!-- docket:event id=close-2026-07-28 -->
 
 <!-- docket:task-log:end -->
