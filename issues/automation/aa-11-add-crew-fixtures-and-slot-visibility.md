@@ -63,6 +63,12 @@ Do not build a workflow engine. Conditional implement/review/fix sequencing rema
 
 Implemented 74783e3: JSON crew fixtures, deterministic slot visibility, fixture-aware claim/take capacity, and non-overwriting distribution. Verified with bun run build, bun test (82 pass), bun run check, task lint, task doctor, and git diff --check. Formal close remains pending because the configured self-hosted completion gate requires external-worktree evidence and authored acceptance checkboxes remain unchecked.
 
+#### 2026-07-28 07:11 UTC — blocker — codex-reconcile
+
+<!-- docket:note id=note-2026-07-28T07:11:59.246Z claim=a2eb58c5-8d6a-42a4-b688-11d412c9f38e kind=blocker -->
+
+Reconciliation: all acceptance criteria were independently verified and implementation commit 74783e3 is recorded. Guarded close remains blocked because commit evidence requires the full task slug while the verified feature commit subject uses the canonical short ID aa-11. No override used.
+
 ### History
 
 - 2026-07-28T06:32:56.099Z — task triaged needs-triage -> ready-for-agent
