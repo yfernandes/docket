@@ -22,15 +22,15 @@ This lets an agent obtain task-local context through Docket without independentl
 
 ## Acceptance Criteria
 
-- [ ] Active tasks can be shown in human and JSON formats.
-- [ ] Archived tasks can be found and shown.
-- [ ] JSON includes the raw authored body and parsed commits, notes, and history.
-- [ ] Assignment data is included without treating history as active state.
-- [ ] Missing or ambiguous task IDs return stable structured errors.
-- [ ] Read-only use does not rewrite issue or ledger files.
-- [ ] Output ordering and serialization have stable tests.
-- [ ] Existing human commands remain compatible.
-- [ ] Source and bundled CLI tests pass.
+- [x] Active tasks can be shown in human and JSON formats.
+- [x] Archived tasks can be found and shown.
+- [x] JSON includes the raw authored body and parsed commits, notes, and history.
+- [x] Assignment data is included without treating history as active state.
+- [x] Missing or ambiguous task IDs return stable structured errors.
+- [x] Read-only use does not rewrite issue or ledger files.
+- [x] Output ordering and serialization have stable tests.
+- [x] Existing human commands remain compatible.
+- [x] Source and bundled CLI tests pass.
 
 ## Blocked by
 
@@ -51,6 +51,9 @@ Do not add note creation, commit detection, fixture slot calculation, or cross-t
 <!-- docket:task-log:start -->
 
 ### Commits
+
+- `4437d802ff58` feat(aa-04): add task show command for complete task context
+<!-- docket:commit hash=4437d802ff58d74dd00d0448a8b4fc5184b422a6 -->
 
 ### Implementation Notes
 
