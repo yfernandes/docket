@@ -71,6 +71,12 @@ Implemented da61d4e: reference external loops, human-first README link, shared s
 
 Reconciliation: all acceptance criteria were independently verified and implementation commit da61d4e is recorded. Guarded close remains blocked because commit evidence requires the full task slug while the verified feature commit subject uses the canonical short ID aa-13. No override used.
 
+#### 2026-07-28 07:24 UTC — blocker — codex-reconcile
+
+<!-- docket:note id=note-2026-07-28T07:24:14.442Z claim=2038ddc8-caef-4dd9-9f0f-52833372656d kind=blocker -->
+
+Reconciliation: guarded close still fails after AA-15 because feature commit da61d4e contains neither the full task ID nor canonical key AA-13 in its message. Evidence remains recorded; no override used.
+
 ### History
 
 - 2026-07-28T06:49:12.059Z — task triaged needs-triage -> ready-for-agent
