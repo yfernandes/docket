@@ -22,16 +22,16 @@ Legacy records and ordinary human commands must continue to work without claim I
 
 ## Acceptance Criteria
 
-- [ ] Every new agent claim receives a stable unique claim ID.
-- [ ] Claim IDs are returned in JSON claim output.
-- [ ] `renew` extends a matching active lease from the current time.
-- [ ] An expired or replaced claim ID cannot mutate the replacement claim.
-- [ ] Guarded release and close paths verify task and claim identity.
-- [ ] Legacy assignment records parse without eager rewriting.
-- [ ] Human commands without `--claim` retain existing behavior.
-- [ ] `--json` alone does not enable strict claim enforcement.
-- [ ] Stale-process, expiry, and renewal races have regression coverage.
-- [ ] Source and bundled verification pass.
+- [x] Every new agent claim receives a stable unique claim ID.
+- [x] Claim IDs are returned in JSON claim output.
+- [x] `renew` extends a matching active lease from the current time.
+- [x] An expired or replaced claim ID cannot mutate the replacement claim.
+- [x] Guarded release and close paths verify task and claim identity.
+- [x] Legacy assignment records parse without eager rewriting.
+- [x] Human commands without `--claim` retain existing behavior.
+- [x] `--json` alone does not enable strict claim enforcement.
+- [x] Stale-process, expiry, and renewal races have regression coverage.
+- [x] Source and bundled verification pass.
 
 ## Blocked by
 
@@ -52,6 +52,9 @@ Do not add role slots, participant outcomes, deterministic selection, or local a
 <!-- docket:task-log:start -->
 
 ### Commits
+
+- `40fae8cf4727` feat(aa-07): guard and renew agent claims
+<!-- docket:commit hash=40fae8cf4727eaa217ae03e005f3643d8a886426 -->
 
 ### Implementation Notes
 
