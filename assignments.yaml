@@ -384,7 +384,7 @@
   lease_until: 2026-07-28T09:23:25.824Z
   released_at: 2026-07-28T07:23:32.658Z
 - task_id: aa-12-scout-structured-notes-across-tasks
-  status: active
+  status: released
   owner: codex-reconcile
   owner_type: agent
   agent_id: codex-reconcile
@@ -394,4 +394,4 @@
   base_commit: aaf85e8b6c29e07bd53425484efa521d0637b66e
   claimed_at: 2026-07-28T07:23:39.319Z
   lease_until: 2026-07-28T09:23:39.310Z
-  released_at: null
+  released_at: 2026-07-28T07:23:47.515Z
