@@ -7,6 +7,11 @@ does not launch a model, store prompts, or implement stage ordering.
 The [human quick start](../README.md#quick-start) remains the normal path.
 These examples are for an existing external automation only.
 
+This guide is the reference deliverable for
+[AA-13](../issues/automation/aa-13-document-and-verify-reference-agent-loops.md)
+and follows the boundaries in the
+[automation roadmap](agent-automation-plan.md#aa-13--reference-automation-fixtures-and-documentation).
+
 ## Contract
 
 Run mutations through `./task` and prefer `--json` for a harness. Successful
