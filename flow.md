@@ -16,7 +16,6 @@ Canonical tracker for planning and execution state.
 - [-] [AA-07 Guard and renew agent claims](issues/automation/aa-07-guard-and-renew-agent-claims.md) (id:aa-07-guard-and-renew-agent-claims) — codex-aa07 since 2026-07-28
 - [-] [AA-12 Scout structured notes across tasks](issues/automation/aa-12-scout-structured-notes-across-tasks.md) (id:aa-12-scout-structured-notes-across-tasks) — codex-aa12 since 2026-07-28
 - [-] [AA-13 Document and verify reference agent loops](issues/automation/aa-13-document-and-verify-reference-agent-loops.md) (id:aa-13-document-and-verify-reference-agent-loops) — codex-aa13 since 2026-07-28
-- [-] [AA-11 Add crew fixtures and slot visibility](issues/automation/aa-11-add-crew-fixtures-and-slot-visibility.md) (id:aa-11-add-crew-fixtures-and-slot-visibility) — codex-reconcile since 2026-07-28
 
 ## Issue Scratchpad
 

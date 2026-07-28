@@ -228,7 +228,7 @@
   lease_until: 2026-07-28T09:11:04.562Z
   released_at: 2026-07-28T07:11:24.342Z
 - task_id: aa-11-add-crew-fixtures-and-slot-visibility
-  status: active
+  status: released
   owner: codex-reconcile
   owner_type: agent
   agent_id: codex-reconcile
@@ -238,4 +238,4 @@
   base_commit: 23dddef88ce9e64de7e969ef2b482fcb0493ea41
   claimed_at: 2026-07-28T07:11:37.364Z
   lease_until: 2026-07-28T09:11:37.354Z
-  released_at: null
+  released_at: 2026-07-28T07:11:59.289Z
