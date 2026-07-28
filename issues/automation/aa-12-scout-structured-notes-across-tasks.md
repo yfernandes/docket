@@ -1,7 +1,7 @@
 ---
 id: aa-12-scout-structured-notes-across-tasks
 title: AA-12 Scout structured notes across tasks
-status: needs-triage
+status: ready-for-agent
 priority: P2
 owner: human
 owner_type: human
@@ -46,3 +46,18 @@ Do not automatically create tasks from notes. Note promotion is a later, separat
 
 - `docs/agent-automation-plan.md#notes`
 - `docs/agent-automation-plan.md#aa-12--cross-task-note-scouting`
+
+## Task Log
+
+<!-- docket:task-log:start -->
+
+### Commits
+
+### Implementation Notes
+
+### History
+
+- 2026-07-28T06:43:12.935Z — task triaged needs-triage -> ready-for-agent
+<!-- docket:event id=triage-2026-07-28T06:43:12.935Z -->
+
+<!-- docket:task-log:end -->
