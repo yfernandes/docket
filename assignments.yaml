@@ -371,3 +371,15 @@
   claimed_at: 2026-07-28T07:23:12.244Z
   lease_until: 2026-07-28T09:23:12.237Z
   released_at: 2026-07-28T07:23:19.244Z
+- task_id: aa-11-add-crew-fixtures-and-slot-visibility
+  status: active
+  owner: codex-reconcile
+  owner_type: agent
+  agent_id: codex-reconcile
+  worktree: /home/yago/projects/active/docket
+  branch: null
+  claim_id: ecd7634a-e7f8-4b0d-a7a3-5cb8b7187d6c
+  base_commit: bdd43fac43267096fe5e981dce3ce088fb8ec413
+  claimed_at: 2026-07-28T07:23:25.833Z
+  lease_until: 2026-07-28T09:23:25.824Z
+  released_at: null
