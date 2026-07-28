@@ -1,11 +1,11 @@
 ---
 id: aa-08-select-the-next-task-deterministically
 title: AA-08 Select the next task deterministically
-status: open
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex-reconcile
+owner_type: agent
+agent_id: codex-reconcile
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -70,5 +70,8 @@ Implemented deterministic read-only task next in bf7e3a1. It shares list filters
 
 - 2026-07-28T07:09:57.248Z — codex-aa08 released task
 <!-- docket:event id=release-2026-07-28T07:09:57.248Z -->
+
+- 2026-07-28T07:09:57.299Z — codex-reconcile claimed task
+<!-- docket:event id=claim-2026-07-28T07:09:57.299Z -->
 
 <!-- docket:task-log:end -->
