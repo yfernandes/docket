@@ -58,6 +58,12 @@ Do not implement cross-task note scouting, note-to-task promotion, or commit-ran
 
 ### Implementation Notes
 
+#### 2026-07-28 07:09 UTC — blocker — codex-reconcile
+
+<!-- docket:note id=note-2026-07-28T07:09:09.921Z claim=dd86d241-6958-464b-9f30-05796899f25b kind=blocker -->
+
+Reconciliation: all acceptance criteria were independently verified and implementation commit 75895d4 is recorded. Guarded close remains blocked because commit evidence requires the full task slug while the verified feature commit subject uses the canonical short ID aa-05. No override used.
+
 ### History
 
 - 2026-07-28T00:36:06.450Z — codex claimed task
