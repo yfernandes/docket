@@ -56,6 +56,12 @@ Do not launch agents, retry work, coordinate remote machines, or introduce parti
 
 ### Implementation Notes
 
+#### 2026-07-28 06:19 UTC — implementation-note — codex-aa09
+
+<!-- docket:note id=note-2026-07-28T06:19:43.999Z claim=be7acece-ce1b-4eab-8e89-dcced57e6fa1 kind=implementation-note -->
+
+Implemented atomic local take in 9eb9b06: tokenized lock metadata and safe stale recovery, reload/expiry/deterministic selection/claim/history in one rollback transaction, and source/bundled contention plus rollback coverage. Verified bun run build, bun test (72 pass), bun run check, task lint, task doctor, and git diff --check. Closure remains pending human acceptance-criteria confirmation; the configured all-policy rejects closure while boxes remain unchecked.
+
 ### History
 
 - 2026-07-28T06:09:38.162Z — task triaged needs-triage -> ready-for-agent
