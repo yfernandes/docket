@@ -22,16 +22,16 @@ Complete lifecycle coverage by recording meaningful create, triage, claim, compl
 
 ## Acceptance Criteria
 
-- [ ] Humans can append a short note without automation-specific flags.
-- [ ] Agents can append multiline notes through stdin and receive JSON output.
-- [ ] Known note kinds are filterable while custom kinds remain valid.
-- [ ] Each structured note has a stable ID, timestamp, kind, and author.
-- [ ] Optional claim and run attribution is preserved.
-- [ ] Meaningful lifecycle changes append one history event.
-- [ ] Lease renewal does not create Task Log noise.
-- [ ] Human-authored prose remains untouched.
-- [ ] Failed mutations restore every touched file.
-- [ ] Human and machine CLI tests pass against source and bundle.
+- [x] Humans can append a short note without automation-specific flags.
+- [x] Agents can append multiline notes through stdin and receive JSON output.
+- [x] Known note kinds are filterable while custom kinds remain valid.
+- [x] Each structured note has a stable ID, timestamp, kind, and author.
+- [x] Optional claim and run attribution is preserved.
+- [x] Meaningful lifecycle changes append one history event.
+- [x] Lease renewal does not create Task Log noise.
+- [x] Human-authored prose remains untouched.
+- [x] Failed mutations restore every touched file.
+- [x] Human and machine CLI tests pass against source and bundle.
 
 ## Blocked by
 
