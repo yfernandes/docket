@@ -1,7 +1,7 @@
 ---
 id: aa-05-record-notes-and-lifecycle-history
 title: AA-05 Record notes and lifecycle history
-status: in-progress
+status: ready-for-agent
 priority: P2
 owner: codex
 owner_type: agent
@@ -62,5 +62,8 @@ Do not implement cross-task note scouting, note-to-task promotion, or commit-ran
 
 - 2026-07-28T04:57:09.925Z — codex claim expired
 <!-- docket:event id=expiry-2026-07-28T04:36:06.450Z -->
+
+- 2026-07-28T07:08:58.689Z — task triaged in-progress -> ready-for-agent
+<!-- docket:event id=triage-2026-07-28T07:08:58.689Z -->
 
 <!-- docket:task-log:end -->
