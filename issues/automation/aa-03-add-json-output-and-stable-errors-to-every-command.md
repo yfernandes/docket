@@ -59,4 +59,7 @@ Do not add `show`, `next`, `take`, claim IDs, or crew behavior. This task establ
 - 2026-07-28T00:00:17.206Z — codex claimed task
 <!-- docket:event id=claim-2026-07-28T00:00:17.206Z -->
 
+- 2026-07-28T04:57:09.925Z — codex claim expired
+<!-- docket:event id=expiry-2026-07-28T04:00:17.206Z -->
+
 <!-- docket:task-log:end -->

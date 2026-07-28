@@ -60,4 +60,7 @@ Do not implement cross-task note scouting, note-to-task promotion, or commit-ran
 - 2026-07-28T00:36:06.450Z — codex claimed task
 <!-- docket:event id=claim-2026-07-28T00:36:06.450Z -->
 
+- 2026-07-28T04:57:09.925Z — codex claim expired
+<!-- docket:event id=expiry-2026-07-28T04:36:06.450Z -->
+
 <!-- docket:task-log:end -->

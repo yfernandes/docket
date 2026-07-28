@@ -59,4 +59,7 @@ Do not add note creation, commit detection, fixture slot calculation, or cross-t
 - 2026-07-28T00:18:01.616Z — codex claimed task
 <!-- docket:event id=claim-2026-07-28T00:18:01.616Z -->
 
+- 2026-07-28T04:57:09.925Z — codex claim expired
+<!-- docket:event id=expiry-2026-07-28T04:18:01.616Z -->
+
 <!-- docket:task-log:end -->
