@@ -57,6 +57,12 @@ Do not add `show`, `next`, `take`, claim IDs, or crew behavior. This task establ
 
 ### Implementation Notes
 
+#### 2026-07-28 07:08 UTC — blocker — codex-reconcile
+
+<!-- docket:note id=note-2026-07-28T07:08:08.445Z claim=e52da2e8-1aa2-426b-9649-7b3643f62f43 kind=blocker -->
+
+Reconciliation: all acceptance criteria were independently verified and implementation commit 686f88e is recorded. Guarded close remains blocked because commit evidence requires the full task slug while the verified feature commit subject uses the canonical short ID aa-03. No override used.
+
 ### History
 
 - 2026-07-28T00:00:17.206Z — codex claimed task
