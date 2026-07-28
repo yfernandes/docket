@@ -67,6 +67,12 @@ Do not enforce fixture capacity, stage ordering, agent launching, or model confi
 
 Implemented participant roles, distinct slots, guarded finish outcomes, atomic Task Log notes, and primary/participant show reporting in e5bfbea. Verified bun test (78 tests), build, check, lint, doctor, and diff check. Closure remains blocked by the documented self-hosted completion policy: this Docket repository has no separate application worktree accepted by related-commit and clean-worktree gates; acceptance boxes also remain authored unchecked and must not be hand-edited.
 
+#### 2026-07-28 07:11 UTC — blocker — codex-reconcile
+
+<!-- docket:note id=note-2026-07-28T07:11:24.296Z claim=2a47ffd9-3d11-4d79-846d-847de74a00e8 kind=blocker -->
+
+Reconciliation: all acceptance criteria were independently verified and implementation commit e5bfbea is recorded. Guarded close remains blocked because commit evidence requires the full task slug while the verified feature commit subject uses the canonical short ID aa-10. No override used.
+
 ### History
 
 - 2026-07-28T06:21:19.743Z — task triaged needs-triage -> ready-for-agent
