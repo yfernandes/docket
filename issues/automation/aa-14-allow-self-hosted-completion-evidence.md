@@ -1,7 +1,7 @@
 ---
 id: aa-14-allow-self-hosted-completion-evidence
 title: AA-14 Allow self-hosted completion evidence
-status: needs-triage
+status: ready-for-agent
 priority: P2
 owner: human
 owner_type: human
@@ -13,67 +13,37 @@ closed_at: null
 
 ## Context
 
+Docket’s own repository dogfoods completion gates from its root worktree. The
+current commit-evidence validator rejects that root unconditionally, so this
+repository cannot honestly close implementation issues when `relatedCommits` is
+required. Separate application-worktree installs must retain the existing
+protection.
+
 ## Objective
+
+Add an explicit, secure-by-default `docket.json` completion policy that permits
+validated implementation commits from Docket’s own root only when the
+installation opts in.
 
 ## Constraints
 
+- The default configuration must continue to reject Docket-root evidence.
+- Do not infer opt-in from a path spelling, symlink, or other path-string
+  workaround.
+- When enabled, continue rejecting Docket lifecycle/state commits such as
+  `claim(...)`, `triage(...)`, and `close(...)` as implementation evidence.
+- Preserve the existing behavior for normal separate application worktrees.
+- Update the repository’s `docket.json` to opt in as the self-hosted
+  dogfooding installation.
+
 ## Acceptance Criteria
 
-## Implementation Checklist
-
-### Frontend Checklist
-
-- [ ] UI matches design reference (Figma or equivalent)
-- [ ] Component is isolated and reusable (no hidden coupling)
-- [ ] Storybook story created or updated
-  - [ ] Default state
-  - [ ] Edge states (loading, empty, error)
-- [ ] Props are minimal and well-defined
-- [ ] No business logic leaked into UI layer
-- [ ] Responsive behavior verified (mobile + desktop)
-- [ ] Accessibility basics covered (labels, roles, keyboard)
-
-### Backend Checklist
-
-- [ ] Clear input/output contract defined
-- [ ] Validation implemented at boundaries
-- [ ] No silent failures (explicit error handling)
-- [ ] Idempotency considered where applicable
-- [ ] No tight coupling to external services
-- [ ] Logging added for critical paths
-- [ ] Performance implications considered
-
-### Testing Checklist
-
-- [ ] Unit tests cover core logic
-- [ ] Edge cases explicitly tested
-- [ ] Happy path verified
-- [ ] Regression risk areas covered
-- [ ] Tests are deterministic (no flaky timing deps)
-
-### Integration Checklist
-
-- [ ] External dependency identified (API, service, SDK)
-- [ ] Failure modes mapped (timeouts, bad responses)
-- [ ] Retry / fallback strategy defined (if needed)
-- [ ] Data contracts validated (no implicit assumptions)
-- [ ] Version compatibility considered
-
-### Delivery Checklist
-
-- [ ] Branch created: `feat/<slug>` or `fix/<slug>`
-- [ ] Small, reviewable commits
-- [ ] No unrelated changes included
-- [ ] PR includes context and testing notes
-- [ ] CI passing
-
-## References
-
-- Figma:
-- API Docs:
-- Related Issue:
-
-## Notes
+- [ ] `completion.allowSelfHostedCommitEvidence` is parsed and documented, with a false default.
+- [ ] Commit evidence from Docket’s root is rejected by default and accepted only after explicit opt-in.
+- [ ] Lifecycle/state commits are rejected even with self-hosted evidence enabled.
+- [ ] Separate application-worktree validation remains unchanged.
+- [ ] Source and generated-bundle tests cover default rejection, opt-in acceptance, and lifecycle-commit rejection.
+- [ ] This repository’s `docket.json` enables the opt-in policy and full repository verification passes.
 
 ## Task Log
 
@@ -87,5 +57,8 @@ closed_at: null
 
 - 2026-07-28T06:58:36.389Z — task created by human
 <!-- docket:event id=create-2026-07-28T06:58:36.389Z -->
+
+- 2026-07-28T06:59:30.684Z — task triaged needs-triage -> ready-for-agent
+<!-- docket:event id=triage-2026-07-28T06:59:30.684Z -->
 
 <!-- docket:task-log:end -->
