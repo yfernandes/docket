@@ -89,3 +89,14 @@
   claimed_at: 2026-07-28T06:05:24.235Z
   lease_until: 2026-07-28T12:05:24.235Z
   released_at: null
+- task_id: aa-09-take-the-next-task-atomically
+  status: active
+  owner: codex-aa09
+  owner_type: agent
+  agent_id: codex-aa09
+  worktree: null
+  branch: null
+  claim_id: be7acece-ce1b-4eab-8e89-dcced57e6fa1
+  claimed_at: 2026-07-28T06:09:38.201Z
+  lease_until: 2026-07-28T10:09:38.200Z
+  released_at: null

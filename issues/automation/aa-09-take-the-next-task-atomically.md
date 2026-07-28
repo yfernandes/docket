@@ -1,11 +1,11 @@
 ---
 id: aa-09-take-the-next-task-atomically
 title: AA-09 Take the next task atomically
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex-aa09
+owner_type: agent
+agent_id: codex-aa09
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -60,5 +60,8 @@ Do not launch agents, retry work, coordinate remote machines, or introduce parti
 
 - 2026-07-28T06:09:38.162Z — task triaged needs-triage -> ready-for-agent
 <!-- docket:event id=triage-2026-07-28T06:09:38.162Z -->
+
+- 2026-07-28T06:09:38.201Z — codex-aa09 claimed task
+<!-- docket:event id=claim-2026-07-28T06:09:38.201Z -->
 
 <!-- docket:task-log:end -->
