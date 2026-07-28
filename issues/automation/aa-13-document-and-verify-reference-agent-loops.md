@@ -1,7 +1,7 @@
 ---
 id: aa-13-document-and-verify-reference-agent-loops
 title: AA-13 Document and verify reference agent loops
-status: needs-triage
+status: ready-for-agent
 priority: P2
 owner: human
 owner_type: human
@@ -47,3 +47,18 @@ Do not add model configuration, prompt templates, a daemon, or an agent launcher
 
 - `docs/agent-automation-plan.md#aa-13--reference-automation-fixtures-and-documentation`
 - `docs/agent-automation-plan.md#guidance-for-implementation-agents`
+
+## Task Log
+
+<!-- docket:task-log:start -->
+
+### Commits
+
+### Implementation Notes
+
+### History
+
+- 2026-07-28T06:49:12.059Z — task triaged needs-triage -> ready-for-agent
+<!-- docket:event id=triage-2026-07-28T06:49:12.059Z -->
+
+<!-- docket:task-log:end -->
