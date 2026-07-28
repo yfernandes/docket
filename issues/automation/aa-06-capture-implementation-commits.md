@@ -62,6 +62,12 @@ Do not derive remote hosting links or require commits for claim completion.
 
 Implemented AA-06 in fd0385d. Verified bun test (54 passing), bun run build, bun run check, task lint, task doctor, and git diff --check. Task closure remains blocked by the configured related-commit gate: this Docket task is claimed without a separate application worktree, and the repository policy rejects ROOT as implementation-evidence worktree. AA-07/configuration work is needed before close can pass without a path workaround.
 
+#### 2026-07-28 07:09 UTC — blocker — codex-reconcile
+
+<!-- docket:note id=note-2026-07-28T07:09:27.096Z kind=blocker -->
+
+Reconciliation: implementation commit fd0385d and the dedicated source/bundle commit-capture tests were reviewed. The legacy active agent assignment has no claim_id and no worktree, so a fresh guarded claim cannot be acquired or the old claim released with its exact identity. No ownership workaround or close override used.
+
 ### History
 
 - 2026-07-28T04:59:15.960Z — task triaged needs-triage -> ready-for-agent
