@@ -56,6 +56,12 @@ Do not add model configuration, prompt templates, a daemon, or an agent launcher
 
 ### Implementation Notes
 
+#### 2026-07-28 06:56 UTC — implementation-note — codex-aa13
+
+<!-- docket:note id=note-2026-07-28T06:56:47.230Z claim=241958aa-2101-499c-94ca-b8adaf907c3b kind=implementation-note -->
+
+Implemented da61d4e: reference external loops, human-first README link, shared supported-agent workflow guidance, and fake local Bun worker integration coverage for implementer/reviewer/fixer, renewal/stale recovery, and empty queues. Verified bun run build, bun test (85 pass), bun run check, task lint, task doctor, and git diff --check. Formal closure remains pending: the configured self-hosted completion gate rejects ROOT-worktree evidence and acceptance checkboxes are authored records that must not be hand-edited. AA-09/10/11 were treated as implementation-complete under the coordinator-approved exception.
+
 ### History
 
 - 2026-07-28T06:49:12.059Z — task triaged needs-triage -> ready-for-agent
