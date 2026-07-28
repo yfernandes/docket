@@ -57,6 +57,9 @@ Do not add model configuration, prompt templates, a daemon, or an agent launcher
 - `da61d4e3e05c` docs(automation): add reference agent loops
 <!-- docket:commit hash=da61d4e3e05cb4cf3f9c9292719150d44457932e -->
 
+- `7b86d97a4aaf` docs(aa-13): link reference loops to roadmap
+<!-- docket:commit hash=7b86d97a4aaf43092b00bac5e3fb669b9e41ee03 -->
+
 ### Implementation Notes
 
 #### 2026-07-28 06:56 UTC — implementation-note — codex-aa13
