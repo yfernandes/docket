@@ -22,16 +22,16 @@ Examples must orchestrate exclusively through the CLI and use fake agent process
 
 ## Acceptance Criteria
 
-- [ ] A simple acquire/work/finish loop is documented.
-- [ ] One implementer plus two concurrent reviewer slots is demonstrated.
-- [ ] An implement/review/fix cycle is demonstrated without Docket launching a model.
-- [ ] Restart, stale claim, renewal, and empty-queue behavior are shown.
-- [ ] Examples use only Docket CLI commands and ordinary shell or Bun APIs.
-- [ ] End-to-end tests use fake agents rather than external model services.
-- [ ] JSON protocol, assignment schema, Task Log, and fixture references are complete.
-- [ ] Supported agent skills describe the new safe workflow.
-- [ ] Human-first quick-start documentation remains clear and unchanged in spirit.
-- [ ] Full source, bundle, lint, doctor, and integration verification pass.
+- [x] A simple acquire/work/finish loop is documented.
+- [x] One implementer plus two concurrent reviewer slots is demonstrated.
+- [x] An implement/review/fix cycle is demonstrated without Docket launching a model.
+- [x] Restart, stale claim, renewal, and empty-queue behavior are shown.
+- [x] Examples use only Docket CLI commands and ordinary shell or Bun APIs.
+- [x] End-to-end tests use fake agents rather than external model services.
+- [x] JSON protocol, assignment schema, Task Log, and fixture references are complete.
+- [x] Supported agent skills describe the new safe workflow.
+- [x] Human-first quick-start documentation remains clear and unchanged in spirit.
+- [x] Full source, bundle, lint, doctor, and integration verification pass.
 
 ## Blocked by
 
@@ -53,6 +53,9 @@ Do not add model configuration, prompt templates, a daemon, or an agent launcher
 <!-- docket:task-log:start -->
 
 ### Commits
+
+- `da61d4e3e05c` docs(automation): add reference agent loops
+<!-- docket:commit hash=da61d4e3e05cb4cf3f9c9292719150d44457932e -->
 
 ### Implementation Notes
 
