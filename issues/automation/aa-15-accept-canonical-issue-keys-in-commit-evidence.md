@@ -1,7 +1,7 @@
 ---
 id: aa-15-accept-canonical-issue-keys-in-commit-evidence
 title: AA-15 Accept canonical issue keys in commit evidence
-status: needs-triage
+status: ready-for-agent
 priority: P2
 owner: human
 owner_type: human
@@ -13,65 +13,51 @@ closed_at: null
 
 ## Context
 
+Closing requires commit evidence whose message includes the complete generated
+task ID. Established implementation commits instead conventionally use the
+canonical key at the beginning of the issue title (for example `AA-03`). This
+prevents otherwise valid evidence from being reconciled.
+
 ## Objective
+
+Allow commit-evidence association by either the full task ID or the issue
+title's canonical key, while keeping the existing lifecycle and unrelated
+commit protections intact.
 
 ## Constraints
 
+- Retain full-task-ID association.
+- Derive a canonical key only from the issue title; do not weaken matching with
+  arbitrary task-slug prefixes.
+- Canonical-key matching is case-insensitive and requires token boundaries
+  (`AA-03` matches; `AA-030` does not).
+- Continue rejecting all Docket lifecycle/state commits as implementation
+  evidence.
+- Add coverage for both `bun src/cli.ts` and the generated `./task` bundle.
+- Preserve unrelated work, including `.ai/`.
+
 ## Acceptance Criteria
+
+- [ ] Full generated task IDs remain accepted in commit evidence.
+- [ ] A well-formed title-derived canonical key is accepted case-insensitively
+  only at token boundaries.
+- [ ] Prefix collisions and unrelated commit messages are rejected.
+- [ ] Docket lifecycle/state commits remain rejected even if they contain an
+  otherwise valid canonical key.
+- [ ] The matching contract is documented.
+- [ ] Source and generated-bundle tests cover the stated cases and full
+  repository verification passes.
 
 ## Implementation Checklist
 
-### Frontend Checklist
-
-- [ ] UI matches design reference (Figma or equivalent)
-- [ ] Component is isolated and reusable (no hidden coupling)
-- [ ] Storybook story created or updated
-  - [ ] Default state
-  - [ ] Edge states (loading, empty, error)
-- [ ] Props are minimal and well-defined
-- [ ] No business logic leaked into UI layer
-- [ ] Responsive behavior verified (mobile + desktop)
-- [ ] Accessibility basics covered (labels, roles, keyboard)
-
-### Backend Checklist
-
-- [ ] Clear input/output contract defined
-- [ ] Validation implemented at boundaries
-- [ ] No silent failures (explicit error handling)
-- [ ] Idempotency considered where applicable
-- [ ] No tight coupling to external services
-- [ ] Logging added for critical paths
-- [ ] Performance implications considered
-
-### Testing Checklist
-
-- [ ] Unit tests cover core logic
-- [ ] Edge cases explicitly tested
-- [ ] Happy path verified
-- [ ] Regression risk areas covered
-- [ ] Tests are deterministic (no flaky timing deps)
-
-### Integration Checklist
-
-- [ ] External dependency identified (API, service, SDK)
-- [ ] Failure modes mapped (timeouts, bad responses)
-- [ ] Retry / fallback strategy defined (if needed)
-- [ ] Data contracts validated (no implicit assumptions)
-- [ ] Version compatibility considered
-
-### Delivery Checklist
-
-- [ ] Branch created: `feat/<slug>` or `fix/<slug>`
-- [ ] Small, reviewable commits
-- [ ] No unrelated changes included
-- [ ] PR includes context and testing notes
-- [ ] CI passing
+- [ ] Implement conservative title-derived canonical-key matching.
+- [ ] Document the evidence association contract.
+- [ ] Add source and bundle compatibility coverage.
+- [ ] Run formatting, tests, build, checks, and Docket health checks.
 
 ## References
 
-- Figma:
-- API Docs:
-- Related Issue:
+- Related: AA-14 Allow self-hosted completion evidence
 
 ## Notes
 
@@ -87,5 +73,8 @@ closed_at: null
 
 - 2026-07-28T07:15:11.425Z — task created by human
 <!-- docket:event id=create-2026-07-28T07:15:11.425Z -->
+
+- 2026-07-28T07:16:18.789Z — task triaged needs-triage -> ready-for-agent
+<!-- docket:event id=triage-2026-07-28T07:16:18.789Z -->
 
 <!-- docket:task-log:end -->
