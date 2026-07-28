@@ -54,6 +54,12 @@ Do not build a workflow engine. Conditional implement/review/fix sequencing rema
 
 ### Implementation Notes
 
+#### 2026-07-28 06:42 UTC — implementation-note — codex-aa11
+
+<!-- docket:note id=note-2026-07-28T06:42:02.646Z claim=c6f4a44c-4ed9-4edf-9bbf-73be95d7b23b kind=implementation-note -->
+
+Implemented 74783e3: JSON crew fixtures, deterministic slot visibility, fixture-aware claim/take capacity, and non-overwriting distribution. Verified with bun run build, bun test (82 pass), bun run check, task lint, task doctor, and git diff --check. Formal close remains pending because the configured self-hosted completion gate requires external-worktree evidence and authored acceptance checkboxes remain unchecked.
+
 ### History
 
 - 2026-07-28T06:32:56.099Z — task triaged needs-triage -> ready-for-agent
