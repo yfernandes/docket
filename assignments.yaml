@@ -122,3 +122,14 @@
   claimed_at: 2026-07-28T06:32:56.138Z
   lease_until: 2026-07-28T10:32:56.138Z
   released_at: null
+- task_id: aa-12-scout-structured-notes-across-tasks
+  status: active
+  owner: codex-aa12
+  owner_type: agent
+  agent_id: codex-aa12
+  worktree: null
+  branch: null
+  claim_id: 45379e10-fb87-41d0-931f-6566e1ca0872
+  claimed_at: 2026-07-28T06:43:12.973Z
+  lease_until: 2026-07-28T10:43:12.973Z
+  released_at: null
