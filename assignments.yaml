@@ -123,7 +123,7 @@
   lease_until: 2026-07-28T10:32:56.138Z
   released_at: 2026-07-28T07:11:37.309Z
 - task_id: aa-12-scout-structured-notes-across-tasks
-  status: active
+  status: released
   owner: codex-aa12
   owner_type: agent
   agent_id: codex-aa12
@@ -132,7 +132,7 @@
   claim_id: 45379e10-fb87-41d0-931f-6566e1ca0872
   claimed_at: 2026-07-28T06:43:12.973Z
   lease_until: 2026-07-28T10:43:12.973Z
-  released_at: null
+  released_at: 2026-07-28T07:12:13.628Z
 - task_id: aa-13-document-and-verify-reference-agent-loops
   status: active
   owner: codex-aa13

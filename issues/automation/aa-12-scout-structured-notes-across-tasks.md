@@ -1,11 +1,11 @@
 ---
 id: aa-12-scout-structured-notes-across-tasks
 title: AA-12 Scout structured notes across tasks
-status: in-progress
+status: open
 priority: P2
-owner: codex-aa12
-owner_type: agent
-agent_id: codex-aa12
+owner: human
+owner_type: human
+agent_id: null
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -68,5 +68,8 @@ Implementation complete in 8c2bcd0: task notes scouts structured Task Log notes 
 
 - 2026-07-28T06:43:12.973Z — codex-aa12 claimed task
 <!-- docket:event id=claim-2026-07-28T06:43:12.973Z -->
+
+- 2026-07-28T07:12:13.628Z — codex-aa12 released task
+<!-- docket:event id=release-2026-07-28T07:12:13.628Z -->
 
 <!-- docket:task-log:end -->
