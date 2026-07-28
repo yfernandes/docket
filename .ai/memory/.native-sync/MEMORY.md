@@ -1,0 +1,1 @@
+- [Codex model mapping](codex-model-mapping.md) — user says sol=harder tasks, terra=simpler, inverse of the codex skill doc.
