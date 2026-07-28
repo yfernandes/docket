@@ -311,3 +311,15 @@
   claimed_at: 2026-07-28T07:21:31.825Z
   lease_until: 2026-07-28T09:21:31.815Z
   released_at: 2026-07-28T07:21:39.138Z
+- task_id: aa-06-capture-implementation-commits
+  status: active
+  owner: codex-reconcile
+  owner_type: agent
+  agent_id: codex-reconcile
+  worktree: /home/yago/projects/active/docket
+  branch: null
+  claim_id: 653fac58-de1c-4be8-be63-4da7568863bd
+  base_commit: 3ada56dc23f07ab1275dc600b40be2007a74af9a
+  claimed_at: 2026-07-28T07:21:50.291Z
+  lease_until: 2026-07-28T09:21:50.284Z
+  released_at: null
