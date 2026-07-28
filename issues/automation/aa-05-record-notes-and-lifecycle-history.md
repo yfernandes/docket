@@ -53,6 +53,9 @@ Do not implement cross-task note scouting, note-to-task promotion, or commit-ran
 
 ### Commits
 
+- `75895d4d39c5` feat(aa-05): record notes and lifecycle history
+<!-- docket:commit hash=75895d4d39c57eea56e6e39afbf455e9151d5f4b -->
+
 ### Implementation Notes
 
 ### History
