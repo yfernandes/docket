@@ -4,11 +4,11 @@
 // src/commands.ts
 import {
   existsSync as existsSync3,
-  mkdirSync,
+  mkdirSync as mkdirSync2,
   readdirSync as readdirSync2,
   readFileSync as readFileSync3,
   realpathSync,
-  renameSync,
+  renameSync as renameSync2,
   statSync as statSync2,
   writeFileSync as writeFileSync2
 } from "fs";
@@ -305,8 +305,10 @@ function serializeFrontmatter(data) {
 // src/repository.ts
 import {
   existsSync as existsSync2,
+  mkdirSync,
   readdirSync,
   readFileSync as readFileSync2,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync
@@ -314,6 +316,120 @@ import {
 import { basename as basename2, isAbsolute, join as join2, relative } from "path";
 var {$ } = globalThis.Bun;
 var ASSIGNMENTS_PATH = join2(ROOT, "assignments.yaml");
+var TAKE_LOCK_PATH = join2(ROOT, ".docket-take.lock");
+var TAKE_LOCK_METADATA_PATH = join2(TAKE_LOCK_PATH, "owner.json");
+var TAKE_LOCK_STALE_MS = 5 * 60000;
+function readTakeLockMetadata() {
+  try {
+    return JSON.parse(readFileSync2(TAKE_LOCK_METADATA_PATH, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+function takeLockAgeMs(metadata) {
+  const createdAt = metadata ? new Date(metadata.created_at).getTime() : NaN;
+  if (Number.isFinite(createdAt))
+    return Math.max(0, Date.now() - createdAt);
+  return Math.max(0, Date.now() - statSync(TAKE_LOCK_PATH).mtimeMs);
+}
+function processIsAlive(pid) {
+  if (!pid || !Number.isInteger(pid) || pid <= 0)
+    return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+}
+function takeLockDetails(metadata, ageMs) {
+  return {
+    path: relPath(TAKE_LOCK_PATH),
+    owner: metadata?.agent ?? "unknown",
+    pid: metadata?.pid ?? null,
+    age_ms: Math.floor(ageMs)
+  };
+}
+function takeLockMessage(metadata, ageMs) {
+  const owner = metadata ? `${metadata.agent} (pid ${metadata.pid})` : "an unknown process";
+  return `Task acquisition is locked by ${owner}; lock age is ${Math.ceil(ageMs / 1000)}s at ${relPath(TAKE_LOCK_PATH)}. Wait for it to finish, or inspect the lock if it is abandoned.`;
+}
+function newTakeLockMetadata(agent) {
+  return {
+    pid: process.pid,
+    agent,
+    created_at: new Date().toISOString(),
+    token: crypto.randomUUID()
+  };
+}
+function writeTakeLockMetadata(metadata) {
+  writeFileSync(TAKE_LOCK_METADATA_PATH, `${JSON.stringify(metadata)}
+`);
+}
+function createTakeLock(agent) {
+  mkdirSync(TAKE_LOCK_PATH);
+  const metadata = newTakeLockMetadata(agent);
+  try {
+    writeTakeLockMetadata(metadata);
+    return metadata;
+  } catch (error) {
+    rmSync(TAKE_LOCK_PATH, { recursive: true, force: true });
+    throw error;
+  }
+}
+function acquireTakeLock(agent) {
+  try {
+    return createTakeLock(agent);
+  } catch (error) {
+    if (error.code !== "EEXIST")
+      throw error;
+  }
+  const metadata = readTakeLockMetadata();
+  let ageMs;
+  try {
+    ageMs = takeLockAgeMs(metadata);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return acquireTakeLock(agent);
+    }
+    throw error;
+  }
+  if (ageMs < TAKE_LOCK_STALE_MS || processIsAlive(metadata?.pid)) {
+    operationalError(takeLockMessage(metadata, ageMs), "TAKE_LOCK_HELD", takeLockDetails(metadata, ageMs));
+  }
+  const stalePath = join2(ROOT, `.docket-take.lock.stale-${process.pid}-${crypto.randomUUID()}`);
+  try {
+    renameSync(TAKE_LOCK_PATH, stalePath);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return acquireTakeLock(agent);
+    }
+    throw error;
+  }
+  rmSync(stalePath, { recursive: true, force: true });
+  try {
+    const replacement = createTakeLock(agent);
+    console.warn(`Recovered stale task acquisition lock at ${relPath(TAKE_LOCK_PATH)} (owner ${metadata?.agent ?? "unknown"}, age ${Math.ceil(ageMs / 1000)}s).`);
+    return replacement;
+  } catch (error) {
+    if (error.code === "EEXIST") {
+      const current = readTakeLockMetadata();
+      const currentAge = takeLockAgeMs(current);
+      operationalError(takeLockMessage(current, currentAge), "TAKE_LOCK_HELD", takeLockDetails(current, currentAge));
+    }
+    throw error;
+  }
+}
+async function withTakeLock(agent, action) {
+  const lock = acquireTakeLock(agent);
+  try {
+    return await action();
+  } finally {
+    if (readTakeLockMetadata()?.token === lock.token) {
+      rmSync(TAKE_LOCK_PATH, { recursive: true, force: true });
+    }
+  }
+}
 function readAssignments() {
   if (!existsSync2(ASSIGNMENTS_PATH))
     return [];
@@ -995,7 +1111,7 @@ async function cmdNew(args) {
   const slug = slugFromTitle(title);
   const scopeDir = join3(ROOT, "issues", scope);
   if (!existsSync3(scopeDir))
-    mkdirSync(scopeDir, { recursive: true });
+    mkdirSync2(scopeDir, { recursive: true });
   const filePath = join3(scopeDir, `${slug}.md`);
   if (existsSync3(filePath))
     die2(`Already exists: ${relPath(filePath)}`);
@@ -1039,26 +1155,43 @@ async function cmdClaim(args) {
   const ownerType = agentId ? "agent" : "human";
   if (ownerType === "agent" && !leaseMinutes)
     die2("Agent claims require --lease <minutes>");
-  const assignments = readAssignments();
-  const conflict = assignments.find((a) => a.task_id === taskId && a.status === "active");
-  if (conflict)
-    die2(`Task '${taskId}' already claimed by '${conflict.owner}'`);
-  const leaseUntil = leaseMinutes ? new Date(Date.now() + leaseMinutes * 60000).toISOString() : null;
-  const baseCommit = ownerType === "agent" && worktree ? await captureBaseCommit(worktree) : null;
-  const record = {
-    task_id: taskId,
-    status: "active",
+  const record = await claimTask(taskId, {
+    agentId,
     owner,
-    owner_type: ownerType,
-    agent_id: agentId,
+    ownerType,
     worktree,
     branch,
-    claim_id: ownerType === "agent" ? crypto.randomUUID() : null,
-    base_commit: baseCommit,
-    claimed_at: new Date().toISOString(),
-    lease_until: leaseUntil,
-    released_at: null
-  };
+    leaseMinutes
+  });
+  console.log(`Claimed '${taskId}' by '${owner}'`);
+  return { task_id: taskId, assignment: record };
+}
+function expireEligibleClaims(assignments, now) {
+  return assignments.filter((assignment) => assignment.status === "active" && assignment.lease_until && new Date(assignment.lease_until) < now).map((assignment) => {
+    assignment.status = "expired";
+    return { assignment, issuePath: findIssueFile(assignment.task_id) };
+  });
+}
+function writeExpiredClaimIssues(expired, expiredAt) {
+  for (const { assignment, issuePath } of expired) {
+    if (!issuePath)
+      continue;
+    const { data, body } = readIssue(issuePath);
+    data.status = "ready-for-agent";
+    data.owner = "human";
+    data.owner_type = "human";
+    data.agent_id = null;
+    writeIssue(issuePath, data, appendHistoryEvent(body, {
+      id: `expiry-${assignment.lease_until}`,
+      text: `- ${expiredAt} \u2014 ${assignment.owner} claim expired`
+    }));
+  }
+}
+async function claimTask(taskId, options, assignments = readAssignments(), expired = [], message = `claim(${taskId}): ${options.owner}`) {
+  const conflict = assignments.find((assignment) => assignment.task_id === taskId && assignment.status === "active");
+  if (conflict)
+    die2(`Task '${taskId}' already claimed by '${conflict.owner}'`);
+  const expiredTaskIds = new Set(expired.map(({ assignment }) => assignment.task_id));
   const issuePath = findIssueFile(taskId);
   if (issuePath) {
     const { data } = readIssue(issuePath);
@@ -1067,33 +1200,67 @@ async function cmdClaim(args) {
       "ready-for-agent",
       "ready-for-human"
     ]);
-    if (!claimableStatuses.has(data.status)) {
+    if (!claimableStatuses.has(data.status) && !expiredTaskIds.has(taskId)) {
       die2(`Task '${taskId}' has status '${data.status}' and cannot be claimed. Claimable statuses: open, ready-for-agent, ready-for-human`);
     }
   }
-  const changedFiles = [ASSIGNMENTS_PATH];
-  if (issuePath)
-    changedFiles.push(issuePath);
-  changedFiles.push(FLOW_PATH);
-  await commitWithRollback(`claim(${taskId}): ${owner}`, changedFiles, async () => {
+  const leaseUntil = options.leaseMinutes ? new Date(Date.now() + options.leaseMinutes * 60000).toISOString() : null;
+  const baseCommit = options.ownerType === "agent" && options.worktree ? await captureBaseCommit(options.worktree) : null;
+  const record = {
+    task_id: taskId,
+    status: "active",
+    owner: options.owner,
+    owner_type: options.ownerType,
+    agent_id: options.agentId,
+    worktree: options.worktree,
+    branch: options.branch,
+    claim_id: options.ownerType === "agent" ? crypto.randomUUID() : null,
+    base_commit: baseCommit,
+    claimed_at: new Date().toISOString(),
+    lease_until: leaseUntil,
+    released_at: null
+  };
+  const changedFiles = [
+    ASSIGNMENTS_PATH,
+    FLOW_PATH,
+    ...expired.map(({ issuePath: path }) => path).filter((path) => path !== null),
+    ...issuePath ? [issuePath] : []
+  ];
+  await commitWithRollback(message, changedFiles, async () => {
+    if (expired.length > 0)
+      writeExpiredClaimIssues(expired, record.claimed_at);
     assignments.push(record);
     writeAssignments(assignments);
     if (issuePath) {
       const { data, body } = readIssue(issuePath);
       data.status = "in-progress";
-      data.owner = owner;
-      data.owner_type = ownerType;
-      data.agent_id = agentId;
+      data.owner = options.owner;
+      data.owner_type = options.ownerType;
+      data.agent_id = options.agentId;
       writeIssue(issuePath, data, appendHistoryEvent(body, {
         id: `claim-${record.claimed_at}`,
-        text: `- ${record.claimed_at} \u2014 ${owner} claimed task`
+        text: `- ${record.claimed_at} \u2014 ${options.owner} claimed task`
       }));
     }
     await cmdRender();
     await gitAdd(changedFiles);
   });
-  console.log(`Claimed '${taskId}' by '${owner}'`);
-  return { task_id: taskId, assignment: record };
+  return record;
+}
+async function commitExpiredClaims(assignments, expired, message, expiredAt) {
+  if (expired.length === 0)
+    return;
+  const changedFiles = [
+    ASSIGNMENTS_PATH,
+    FLOW_PATH,
+    ...expired.map(({ issuePath }) => issuePath).filter((path) => path !== null)
+  ];
+  await commitWithRollback(message, changedFiles, async () => {
+    writeExpiredClaimIssues(expired, expiredAt);
+    writeAssignments(assignments);
+    await cmdRender();
+    await gitAdd(changedFiles);
+  });
 }
 function activeAssignmentIndex(assignments, taskId) {
   return assignments.findIndex((assignment) => assignment.task_id === taskId && assignment.status === "active");
@@ -1561,7 +1728,7 @@ async function cmdClose(args) {
   }
   await commitWithRollback(`close(${taskId})`, [issuePath, newPath, FLOW_PATH, ASSIGNMENTS_PATH], async () => {
     if (!existsSync3(doneDir))
-      mkdirSync(doneDir, { recursive: true });
+      mkdirSync2(doneDir, { recursive: true });
     let updatedBody = body;
     for (const commit of JSON.parse(flags.__evidence ?? "[]"))
       updatedBody = appendCommit(updatedBody, commit);
@@ -1579,7 +1746,7 @@ async function cmdClose(args) {
       id: `close-${data.closed_at}`,
       text: `- ${data.closed_at} \u2014 task closed by ${data.owner ?? "human"}`
     }));
-    renameSync(issuePath, newPath);
+    renameSync2(issuePath, newPath);
     if (idx !== -1) {
       assignments[idx].status = "released";
       assignments[idx].released_at = new Date().toISOString();
@@ -1598,31 +1765,16 @@ async function cmdDoctor() {
   const assignments = readAssignments();
   const now = new Date;
   const warnings = [];
-  const expired = assignments.filter((assignment) => assignment.status === "active" && assignment.lease_until && new Date(assignment.lease_until) < now);
-  for (const assignment of expired) {
+  const expired = expireEligibleClaims(assignments, now);
+  for (const { assignment } of expired) {
     const message = `EXPIRED: ${assignment.task_id} (lease was ${assignment.lease_until})`;
     warnings.push(message);
     console.warn(message);
   }
   if (expired.length > 0) {
-    const issuePaths = expired.map((assignment) => findIssueFile(assignment.task_id)).filter((path) => path !== null);
+    const issuePaths = expired.map(({ issuePath }) => issuePath).filter((path) => path !== null);
     await commitWithRollback(`doctor: expire ${expired.length} lease(s)`, [ASSIGNMENTS_PATH, FLOW_PATH, ...issuePaths], async () => {
-      for (const assignment of expired) {
-        assignment.status = "expired";
-        const issuePath = findIssueFile(assignment.task_id);
-        if (!issuePath)
-          continue;
-        const { data, body } = readIssue(issuePath);
-        data.status = "ready-for-agent";
-        data.owner = "human";
-        data.owner_type = "human";
-        data.agent_id = null;
-        const expiredAt = now.toISOString();
-        writeIssue(issuePath, data, appendHistoryEvent(body, {
-          id: `expiry-${assignment.lease_until}`,
-          text: `- ${expiredAt} \u2014 ${assignment.owner} claim expired`
-        }));
-      }
+      writeExpiredClaimIssues(expired, now.toISOString());
       writeAssignments(assignments);
       await cmdRender();
       await gitAdd([ASSIGNMENTS_PATH, FLOW_PATH, ...issuePaths]);
@@ -1696,21 +1848,24 @@ async function cmdRender() {
     agents: agents.length
   };
 }
-function filteredIssues(flags) {
-  let issues = walkIssues().map((p) => ({
-    ...readIssue(p).data,
-    _path: p,
-    _scope: scopeFromPath(p)
-  }));
+function filterIssueRows(issues, flags) {
+  let filtered = issues;
   if (flags.status)
-    issues = issues.filter((i) => i.status === flags.status);
+    filtered = filtered.filter((issue) => issue.status === flags.status);
   if (flags.scope)
-    issues = issues.filter((i) => i._scope === flags.scope);
+    filtered = filtered.filter((issue) => issue._scope === flags.scope);
   if (flags.owner)
-    issues = issues.filter((i) => i.owner === flags.owner);
+    filtered = filtered.filter((issue) => issue.owner === flags.owner);
   if (flags.tag)
-    issues = issues.filter((i) => Array.isArray(i.tags) && i.tags.includes(flags.tag));
-  return issues;
+    filtered = filtered.filter((issue) => Array.isArray(issue.tags) && issue.tags.includes(flags.tag));
+  return filtered;
+}
+function filteredIssues(flags) {
+  return filterIssueRows(walkIssues().map((path) => ({
+    ...readIssue(path).data,
+    _path: path,
+    _scope: scopeFromPath(path)
+  })), flags);
 }
 function compareIssues(left, right) {
   const priority = { P1: 1, P2: 2, P3: 3, P4: 4 };
@@ -1761,6 +1916,47 @@ async function cmdNext(args) {
   }
   console.log(`Next task: ${task.id} \u2014 ${task.title ?? task.id}`);
   return { task: publicIssue(task) };
+}
+async function cmdTake(args) {
+  const flags = parseFlags(args);
+  const agentId = flags.agent;
+  const leaseMinutes = flags.lease ? Number(flags.lease) : NaN;
+  if (!agentId || !Number.isInteger(leaseMinutes) || leaseMinutes <= 0) {
+    die2("Usage: task take --agent <agent-id> --lease <minutes> [--status <status>] [--scope <scope>] [--owner <owner>] [--tag <tag>] [--worktree <path>] [--branch <branch>]");
+  }
+  return withTakeLock(agentId, async () => {
+    const assignments = readAssignments();
+    const now = new Date;
+    const expired = expireEligibleClaims(assignments, now);
+    const expiredTaskIds = new Set(expired.map(({ assignment: assignment2 }) => assignment2.task_id));
+    const { status = "ready-for-agent", ...selectionFlags } = flags;
+    const candidates = filterIssueRows(filteredIssues({}).map((issue) => expiredTaskIds.has(issue.id) ? {
+      ...issue,
+      status: "ready-for-agent",
+      owner: "human",
+      owner_type: "human",
+      agent_id: null
+    } : issue).filter((issue) => issue.status === status), selectionFlags).toSorted(compareIssues);
+    const task = candidates[0];
+    if (!task) {
+      await commitExpiredClaims(assignments, expired, `take: expire ${expired.length} lease(s)`, now.toISOString());
+      console.log("No tasks available.");
+      return { task: null };
+    }
+    const owner = agentId;
+    const assignment = await claimTask(task.id, {
+      agentId,
+      owner,
+      ownerType: "agent",
+      worktree: flags.worktree ?? null,
+      branch: flags.branch ?? null,
+      leaseMinutes
+    }, assignments, expired, `take(${task.id}): ${owner}`);
+    const issuePath = findIssueFile(task.id);
+    const claimedTask = issuePath ? readIssue(issuePath).data : publicIssue(task);
+    console.log(`Took '${task.id}' as '${owner}'`);
+    return { task: claimedTask, assignment };
+  });
 }
 async function cmdShow(args) {
   const taskId = args[0];
@@ -1978,7 +2174,7 @@ Clarification: ${answer}`, apiKey);
     if (result.type === "issue" && result.scope && result.slug && result.markdown) {
       const scopeDir = join3(ROOT, "issues", result.scope);
       if (!existsSync3(scopeDir))
-        mkdirSync(scopeDir, { recursive: true });
+        mkdirSync2(scopeDir, { recursive: true });
       const filePath = join3(scopeDir, `${result.slug}.md`);
       writeFileSync2(filePath, result.markdown);
       newFiles.push(filePath);
@@ -2039,6 +2235,16 @@ Commands:
     --owner <s>             Filter by owner
     --tag <t>               Filter by tag
     --json                  JSON output
+  take                      Atomically select and claim the next task
+    --agent <id>            Agent identity (required)
+    --lease <minutes>       Lease duration (required)
+    --status <s>            Filter by status (default: ready-for-agent)
+    --scope <s>             Filter by scope
+    --owner <s>             Filter by owner
+    --tag <t>               Filter by tag
+    --worktree <path>       Optional agent worktree
+    --branch <name>         Optional agent branch
+    --json                  JSON output
   show <task-id>            Show complete task context
     --json                  JSON output
   note <task-id> [text]     Append a durable implementation note
@@ -2091,6 +2297,8 @@ async function main(args = process.argv.slice(2)) {
         return cmdList(rest);
       case "next":
         return cmdNext(rest);
+      case "take":
+        return cmdTake(rest);
       case "show":
         return cmdShow(rest);
       case "note":

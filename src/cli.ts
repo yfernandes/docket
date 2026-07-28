@@ -17,6 +17,7 @@ import {
 	cmdRender,
 	cmdRenew,
 	cmdShow,
+	cmdTake,
 	cmdTriage,
 } from "./commands";
 import { domainError, runCommand, usageError } from "./protocol";
@@ -60,6 +61,16 @@ Commands:
     --scope <s>             Filter by scope
     --owner <s>             Filter by owner
     --tag <t>               Filter by tag
+    --json                  JSON output
+  take                      Atomically select and claim the next task
+    --agent <id>            Agent identity (required)
+    --lease <minutes>       Lease duration (required)
+    --status <s>            Filter by status (default: ready-for-agent)
+    --scope <s>             Filter by scope
+    --owner <s>             Filter by owner
+    --tag <t>               Filter by tag
+    --worktree <path>       Optional agent worktree
+    --branch <name>         Optional agent branch
     --json                  JSON output
   show <task-id>            Show complete task context
     --json                  JSON output
@@ -114,6 +125,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 				return cmdList(rest);
 			case "next":
 				return cmdNext(rest);
+			case "take":
+				return cmdTake(rest);
 			case "show":
 				return cmdShow(rest);
 			case "note":

@@ -51,6 +51,7 @@ curl -fsSL https://raw.githubusercontent.com/yfernandes/docket/refs/heads/main/s
 | `list`                | Browse issues — filterable by scope/status, `--json` mode |
 | `new <scope> <title>` | Create an issue from a template                           |
 | `claim <id>`          | Take ownership, mark in-progress, auto-commit             |
+| `take --agent <id>`   | Atomically select and claim the next available task        |
 | `triage <id>`         | Update the issue triage status                            |
 | `release <id>`        | Hand a task back to open                                  |
 | `close <id>`          | Mark done, archive issue file, commit                     |

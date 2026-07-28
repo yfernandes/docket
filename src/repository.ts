@@ -1,7 +1,9 @@
 import {
 	existsSync,
+	mkdirSync,
 	readdirSync,
 	readFileSync,
+	renameSync,
 	rmSync,
 	statSync,
 	writeFileSync,
@@ -9,13 +11,168 @@ import {
 import { basename, isAbsolute, join, relative } from "node:path";
 import { $ } from "bun";
 import { parseFrontmatter, serializeFrontmatter } from "./frontmatter";
-import { isJsonMode } from "./protocol";
+import { isJsonMode, operationalError } from "./protocol";
 import { ROOT } from "./runtime";
 import type { Assignment, IssueFrontmatter } from "./types";
 
 // ── assignments.yaml ──────────────────────────────────────────────────────────
 
 export const ASSIGNMENTS_PATH = join(ROOT, "assignments.yaml");
+
+// ── local take lock ─────────────────────────────────────────────────────────
+
+export const TAKE_LOCK_PATH = join(ROOT, ".docket-take.lock");
+const TAKE_LOCK_METADATA_PATH = join(TAKE_LOCK_PATH, "owner.json");
+const TAKE_LOCK_STALE_MS = 5 * 60_000;
+
+interface TakeLockMetadata {
+	pid: number;
+	agent: string;
+	created_at: string;
+	token: string;
+}
+
+function readTakeLockMetadata(): TakeLockMetadata | null {
+	try {
+		return JSON.parse(
+			readFileSync(TAKE_LOCK_METADATA_PATH, "utf-8"),
+		) as TakeLockMetadata;
+	} catch {
+		return null;
+	}
+}
+
+function takeLockAgeMs(metadata: TakeLockMetadata | null): number {
+	const createdAt = metadata ? new Date(metadata.created_at).getTime() : NaN;
+	if (Number.isFinite(createdAt)) return Math.max(0, Date.now() - createdAt);
+	return Math.max(0, Date.now() - statSync(TAKE_LOCK_PATH).mtimeMs);
+}
+
+function processIsAlive(pid: number | undefined): boolean {
+	if (!pid || !Number.isInteger(pid) || pid <= 0) return false;
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (error) {
+		return (error as NodeJS.ErrnoException).code === "EPERM";
+	}
+}
+
+function takeLockDetails(metadata: TakeLockMetadata | null, ageMs: number) {
+	return {
+		path: relPath(TAKE_LOCK_PATH),
+		owner: metadata?.agent ?? "unknown",
+		pid: metadata?.pid ?? null,
+		age_ms: Math.floor(ageMs),
+	};
+}
+
+function takeLockMessage(
+	metadata: TakeLockMetadata | null,
+	ageMs: number,
+): string {
+	const owner = metadata
+		? `${metadata.agent} (pid ${metadata.pid})`
+		: "an unknown process";
+	return `Task acquisition is locked by ${owner}; lock age is ${Math.ceil(ageMs / 1000)}s at ${relPath(TAKE_LOCK_PATH)}. Wait for it to finish, or inspect the lock if it is abandoned.`;
+}
+
+function newTakeLockMetadata(agent: string): TakeLockMetadata {
+	return {
+		pid: process.pid,
+		agent,
+		created_at: new Date().toISOString(),
+		token: crypto.randomUUID(),
+	};
+}
+
+function writeTakeLockMetadata(metadata: TakeLockMetadata): void {
+	writeFileSync(TAKE_LOCK_METADATA_PATH, `${JSON.stringify(metadata)}\n`);
+}
+
+function createTakeLock(agent: string): TakeLockMetadata {
+	mkdirSync(TAKE_LOCK_PATH);
+	const metadata = newTakeLockMetadata(agent);
+	try {
+		writeTakeLockMetadata(metadata);
+		return metadata;
+	} catch (error) {
+		rmSync(TAKE_LOCK_PATH, { recursive: true, force: true });
+		throw error;
+	}
+}
+
+function acquireTakeLock(agent: string): TakeLockMetadata {
+	try {
+		return createTakeLock(agent);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+	}
+
+	const metadata = readTakeLockMetadata();
+	let ageMs: number;
+	try {
+		ageMs = takeLockAgeMs(metadata);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+			return acquireTakeLock(agent);
+		}
+		throw error;
+	}
+	if (ageMs < TAKE_LOCK_STALE_MS || processIsAlive(metadata?.pid)) {
+		operationalError(
+			takeLockMessage(metadata, ageMs),
+			"TAKE_LOCK_HELD",
+			takeLockDetails(metadata, ageMs),
+		);
+	}
+
+	const stalePath = join(
+		ROOT,
+		`.docket-take.lock.stale-${process.pid}-${crypto.randomUUID()}`,
+	);
+	try {
+		renameSync(TAKE_LOCK_PATH, stalePath);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+			return acquireTakeLock(agent);
+		}
+		throw error;
+	}
+	rmSync(stalePath, { recursive: true, force: true });
+	try {
+		const replacement = createTakeLock(agent);
+		console.warn(
+			`Recovered stale task acquisition lock at ${relPath(TAKE_LOCK_PATH)} (owner ${metadata?.agent ?? "unknown"}, age ${Math.ceil(ageMs / 1000)}s).`,
+		);
+		return replacement;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+			const current = readTakeLockMetadata();
+			const currentAge = takeLockAgeMs(current);
+			operationalError(
+				takeLockMessage(current, currentAge),
+				"TAKE_LOCK_HELD",
+				takeLockDetails(current, currentAge),
+			);
+		}
+		throw error;
+	}
+}
+
+export async function withTakeLock<T>(
+	agent: string,
+	action: () => Promise<T>,
+): Promise<T> {
+	const lock = acquireTakeLock(agent);
+	try {
+		return await action();
+	} finally {
+		if (readTakeLockMetadata()?.token === lock.token) {
+			rmSync(TAKE_LOCK_PATH, { recursive: true, force: true });
+		}
+	}
+}
 
 export function readAssignments(): Assignment[] {
 	if (!existsSync(ASSIGNMENTS_PATH)) return [];

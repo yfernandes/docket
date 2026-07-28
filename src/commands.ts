@@ -44,6 +44,7 @@ import {
 	slugFromTitle,
 	today,
 	walkIssues,
+	withTakeLock,
 	writeAssignments,
 	writeFlow,
 	writeIssue,
@@ -375,35 +376,87 @@ export async function cmdClaim(args: string[]) {
 	if (ownerType === "agent" && !leaseMinutes)
 		die("Agent claims require --lease <minutes>");
 
-	const assignments = readAssignments();
+	const record = await claimTask(taskId, {
+		agentId,
+		owner,
+		ownerType,
+		worktree,
+		branch,
+		leaseMinutes,
+	});
+	console.log(`Claimed '${taskId}' by '${owner}'`);
+	return { task_id: taskId, assignment: record };
+}
+
+interface ClaimOptions {
+	agentId: string | null;
+	owner: string;
+	ownerType: "human" | "agent";
+	worktree: string | null;
+	branch: string | null;
+	leaseMinutes: number | null;
+}
+
+interface ExpiredClaim {
+	assignment: Assignment;
+	issuePath: string | null;
+}
+
+function expireEligibleClaims(
+	assignments: Assignment[],
+	now: Date,
+): ExpiredClaim[] {
+	return assignments
+		.filter(
+			(assignment) =>
+				assignment.status === "active" &&
+				assignment.lease_until &&
+				new Date(assignment.lease_until) < now,
+		)
+		.map((assignment) => {
+			assignment.status = "expired";
+			return { assignment, issuePath: findIssueFile(assignment.task_id) };
+		});
+}
+
+function writeExpiredClaimIssues(
+	expired: ExpiredClaim[],
+	expiredAt: string,
+): void {
+	for (const { assignment, issuePath } of expired) {
+		if (!issuePath) continue;
+		const { data, body } = readIssue(issuePath);
+		data.status = "ready-for-agent";
+		data.owner = "human";
+		data.owner_type = "human";
+		data.agent_id = null;
+		writeIssue(
+			issuePath,
+			data,
+			appendHistoryEvent(body, {
+				id: `expiry-${assignment.lease_until}`,
+				text: `- ${expiredAt} — ${assignment.owner} claim expired`,
+			}),
+		);
+	}
+}
+
+async function claimTask(
+	taskId: string,
+	options: ClaimOptions,
+	assignments = readAssignments(),
+	expired: ExpiredClaim[] = [],
+	message = `claim(${taskId}): ${options.owner}`,
+): Promise<Assignment> {
 	const conflict = assignments.find(
-		(a) => a.task_id === taskId && a.status === "active",
+		(assignment) =>
+			assignment.task_id === taskId && assignment.status === "active",
 	);
 	if (conflict) die(`Task '${taskId}' already claimed by '${conflict.owner}'`);
 
-	const leaseUntil = leaseMinutes
-		? new Date(Date.now() + leaseMinutes * 60_000).toISOString()
-		: null;
-
-	const baseCommit =
-		ownerType === "agent" && worktree
-			? await captureBaseCommit(worktree)
-			: null;
-	const record: Assignment = {
-		task_id: taskId,
-		status: "active",
-		owner,
-		owner_type: ownerType,
-		agent_id: agentId,
-		worktree,
-		branch,
-		claim_id: ownerType === "agent" ? crypto.randomUUID() : null,
-		base_commit: baseCommit,
-		claimed_at: new Date().toISOString(),
-		lease_until: leaseUntil,
-		released_at: null,
-	};
-
+	const expiredTaskIds = new Set(
+		expired.map(({ assignment }) => assignment.task_id),
+	);
 	const issuePath = findIssueFile(taskId);
 	if (issuePath) {
 		const { data } = readIssue(issuePath);
@@ -412,45 +465,90 @@ export async function cmdClaim(args: string[]) {
 			"ready-for-agent",
 			"ready-for-human",
 		]);
-		if (!claimableStatuses.has(data.status)) {
+		if (!claimableStatuses.has(data.status) && !expiredTaskIds.has(taskId)) {
 			die(
 				`Task '${taskId}' has status '${data.status}' and cannot be claimed. Claimable statuses: open, ready-for-agent, ready-for-human`,
 			);
 		}
 	}
-	const changedFiles: string[] = [ASSIGNMENTS_PATH];
-	if (issuePath) changedFiles.push(issuePath);
-	changedFiles.push(FLOW_PATH);
 
-	await commitWithRollback(
-		`claim(${taskId}): ${owner}`,
-		changedFiles,
-		async () => {
-			assignments.push(record);
-			writeAssignments(assignments);
+	const leaseUntil = options.leaseMinutes
+		? new Date(Date.now() + options.leaseMinutes * 60_000).toISOString()
+		: null;
+	const baseCommit =
+		options.ownerType === "agent" && options.worktree
+			? await captureBaseCommit(options.worktree)
+			: null;
+	const record: Assignment = {
+		task_id: taskId,
+		status: "active",
+		owner: options.owner,
+		owner_type: options.ownerType,
+		agent_id: options.agentId,
+		worktree: options.worktree,
+		branch: options.branch,
+		claim_id: options.ownerType === "agent" ? crypto.randomUUID() : null,
+		base_commit: baseCommit,
+		claimed_at: new Date().toISOString(),
+		lease_until: leaseUntil,
+		released_at: null,
+	};
+	const changedFiles = [
+		ASSIGNMENTS_PATH,
+		FLOW_PATH,
+		...expired
+			.map(({ issuePath: path }) => path)
+			.filter((path): path is string => path !== null),
+		...(issuePath ? [issuePath] : []),
+	];
 
-			if (issuePath) {
-				const { data, body } = readIssue(issuePath);
-				data.status = "in-progress";
-				data.owner = owner;
-				data.owner_type = ownerType;
-				data.agent_id = agentId;
-				writeIssue(
-					issuePath,
-					data,
-					appendHistoryEvent(body, {
-						id: `claim-${record.claimed_at}`,
-						text: `- ${record.claimed_at} — ${owner} claimed task`,
-					}),
-				);
-			}
+	await commitWithRollback(message, changedFiles, async () => {
+		if (expired.length > 0) writeExpiredClaimIssues(expired, record.claimed_at);
+		assignments.push(record);
+		writeAssignments(assignments);
 
-			await cmdRender();
-			await gitAdd(changedFiles);
-		},
-	);
-	console.log(`Claimed '${taskId}' by '${owner}'`);
-	return { task_id: taskId, assignment: record };
+		if (issuePath) {
+			const { data, body } = readIssue(issuePath);
+			data.status = "in-progress";
+			data.owner = options.owner;
+			data.owner_type = options.ownerType;
+			data.agent_id = options.agentId;
+			writeIssue(
+				issuePath,
+				data,
+				appendHistoryEvent(body, {
+					id: `claim-${record.claimed_at}`,
+					text: `- ${record.claimed_at} — ${options.owner} claimed task`,
+				}),
+			);
+		}
+
+		await cmdRender();
+		await gitAdd(changedFiles);
+	});
+	return record;
+}
+
+async function commitExpiredClaims(
+	assignments: Assignment[],
+	expired: ExpiredClaim[],
+	message: string,
+	expiredAt: string,
+): Promise<void> {
+	if (expired.length === 0) return;
+	const changedFiles = [
+		ASSIGNMENTS_PATH,
+		FLOW_PATH,
+		...expired
+			.map(({ issuePath }) => issuePath)
+			.filter((path): path is string => path !== null),
+	];
+	await commitWithRollback(message, changedFiles, async () => {
+		writeExpiredClaimIssues(expired, expiredAt);
+		writeAssignments(assignments);
+		await cmdRender();
+		await gitAdd(changedFiles);
+	});
 }
 
 function activeAssignmentIndex(
@@ -1187,14 +1285,9 @@ export async function cmdDoctor() {
 	const assignments = readAssignments();
 	const now = new Date();
 	const warnings: string[] = [];
-	const expired = assignments.filter(
-		(assignment) =>
-			assignment.status === "active" &&
-			assignment.lease_until &&
-			new Date(assignment.lease_until) < now,
-	);
+	const expired = expireEligibleClaims(assignments, now);
 
-	for (const assignment of expired) {
+	for (const { assignment } of expired) {
 		const message = `EXPIRED: ${assignment.task_id} (lease was ${assignment.lease_until})`;
 		warnings.push(message);
 		console.warn(message);
@@ -1202,31 +1295,13 @@ export async function cmdDoctor() {
 
 	if (expired.length > 0) {
 		const issuePaths = expired
-			.map((assignment) => findIssueFile(assignment.task_id))
+			.map(({ issuePath }) => issuePath)
 			.filter((path): path is string => path !== null);
 		await commitWithRollback(
 			`doctor: expire ${expired.length} lease(s)`,
 			[ASSIGNMENTS_PATH, FLOW_PATH, ...issuePaths],
 			async () => {
-				for (const assignment of expired) {
-					assignment.status = "expired";
-					const issuePath = findIssueFile(assignment.task_id);
-					if (!issuePath) continue;
-					const { data, body } = readIssue(issuePath);
-					data.status = "ready-for-agent";
-					data.owner = "human";
-					data.owner_type = "human";
-					data.agent_id = null;
-					const expiredAt = now.toISOString();
-					writeIssue(
-						issuePath,
-						data,
-						appendHistoryEvent(body, {
-							id: `expiry-${assignment.lease_until}`,
-							text: `- ${expiredAt} — ${assignment.owner} claim expired`,
-						}),
-					);
-				}
+				writeExpiredClaimIssues(expired, now.toISOString());
 				writeAssignments(assignments);
 				await cmdRender();
 				await gitAdd([ASSIGNMENTS_PATH, FLOW_PATH, ...issuePaths]);
@@ -1329,21 +1404,34 @@ export async function cmdRender() {
 
 export type IssueRow = IssueFrontmatter & { _path: string; _scope: string };
 
-export function filteredIssues(flags: Record<string, string>): IssueRow[] {
-	let issues: IssueRow[] = walkIssues().map((p) => ({
-		...readIssue(p).data,
-		_path: p,
-		_scope: scopeFromPath(p),
-	}));
+export function filterIssueRows(
+	issues: IssueRow[],
+	flags: Record<string, string>,
+): IssueRow[] {
+	let filtered = issues;
 
-	if (flags.status) issues = issues.filter((i) => i.status === flags.status);
-	if (flags.scope) issues = issues.filter((i) => i._scope === flags.scope);
-	if (flags.owner) issues = issues.filter((i) => i.owner === flags.owner);
+	if (flags.status)
+		filtered = filtered.filter((issue) => issue.status === flags.status);
+	if (flags.scope)
+		filtered = filtered.filter((issue) => issue._scope === flags.scope);
+	if (flags.owner)
+		filtered = filtered.filter((issue) => issue.owner === flags.owner);
 	if (flags.tag)
-		issues = issues.filter(
-			(i) => Array.isArray(i.tags) && i.tags.includes(flags.tag),
+		filtered = filtered.filter(
+			(issue) => Array.isArray(issue.tags) && issue.tags.includes(flags.tag),
 		);
-	return issues;
+	return filtered;
+}
+
+export function filteredIssues(flags: Record<string, string>): IssueRow[] {
+	return filterIssueRows(
+		walkIssues().map((path) => ({
+			...readIssue(path).data,
+			_path: path,
+			_scope: scopeFromPath(path),
+		})),
+		flags,
+	);
 }
 
 export function compareIssues(left: IssueRow, right: IssueRow): number {
@@ -1409,6 +1497,80 @@ export async function cmdNext(args: string[]) {
 
 	console.log(`Next task: ${task.id} — ${task.title ?? task.id}`);
 	return { task: publicIssue(task) };
+}
+
+// ── task take ────────────────────────────────────────────────────────────────
+
+export async function cmdTake(args: string[]) {
+	const flags = parseFlags(args);
+	const agentId = flags.agent;
+	const leaseMinutes = flags.lease ? Number(flags.lease) : NaN;
+	if (!agentId || !Number.isInteger(leaseMinutes) || leaseMinutes <= 0) {
+		die(
+			"Usage: task take --agent <agent-id> --lease <minutes> [--status <status>] [--scope <scope>] [--owner <owner>] [--tag <tag>] [--worktree <path>] [--branch <branch>]",
+		);
+	}
+
+	return withTakeLock(agentId, async () => {
+		// All task and assignment reads intentionally happen after lock acquisition.
+		const assignments = readAssignments();
+		const now = new Date();
+		const expired = expireEligibleClaims(assignments, now);
+		const expiredTaskIds = new Set(
+			expired.map(({ assignment }) => assignment.task_id),
+		);
+		const { status = "ready-for-agent", ...selectionFlags } = flags;
+		const candidates = filterIssueRows(
+			filteredIssues({})
+				.map((issue) =>
+					expiredTaskIds.has(issue.id)
+						? {
+								...issue,
+								status: "ready-for-agent" as const,
+								owner: "human",
+								owner_type: "human" as const,
+								agent_id: null,
+							}
+						: issue,
+				)
+				.filter((issue) => issue.status === status),
+			selectionFlags,
+		).toSorted(compareIssues);
+		const task = candidates[0];
+
+		if (!task) {
+			await commitExpiredClaims(
+				assignments,
+				expired,
+				`take: expire ${expired.length} lease(s)`,
+				now.toISOString(),
+			);
+			console.log("No tasks available.");
+			return { task: null };
+		}
+
+		const owner = agentId;
+		const assignment = await claimTask(
+			task.id,
+			{
+				agentId,
+				owner,
+				ownerType: "agent",
+				worktree: flags.worktree ?? null,
+				branch: flags.branch ?? null,
+				leaseMinutes,
+			},
+			assignments,
+			expired,
+			`take(${task.id}): ${owner}`,
+		);
+		const issuePath = findIssueFile(task.id);
+		const claimedTask = issuePath
+			? readIssue(issuePath).data
+			: publicIssue(task);
+		console.log(`Took '${task.id}' as '${owner}'`);
+		return { task: claimedTask, assignment };
+	});
 }
 
 // ── task show ────────────────────────────────────────────────────────────────

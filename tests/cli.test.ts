@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	chmodSync,
 	copyFileSync,
 	existsSync,
 	mkdirSync,
@@ -190,6 +191,36 @@ function run(
 		stdout: result.stdout.toString(),
 		stderr: result.stderr.toString(),
 	};
+}
+
+async function runAsync(
+	fixture: string,
+	entrypoint: "source" | "bundled",
+	args: string[],
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+	const command =
+		entrypoint === "source"
+			? ["bun", "src/cli.ts", ...args]
+			: ["bun", "task", ...args];
+	const process = Bun.spawn(command, {
+		cwd: fixture,
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	const exitCode = await process.exited;
+	return {
+		exitCode,
+		stdout: await new Response(process.stdout).text(),
+		stderr: await new Response(process.stderr).text(),
+	};
+}
+
+async function waitForPath(path: string): Promise<void> {
+	for (let attempt = 0; attempt < 100; attempt++) {
+		if (existsSync(path)) return;
+		await Bun.sleep(10);
+	}
+	throw new Error(`Timed out waiting for ${path}`);
 }
 
 function createLegacyFixture(): string {
@@ -669,6 +700,302 @@ closed_at: null
 				expect(human.exitCode).toBe(0);
 				expect(human.stdout).toBe("No tasks available.\n");
 			});
+		});
+	}
+});
+
+describe("atomic task take", () => {
+	for (const entrypoint of ["source", "bundled"] as const) {
+		test(`${entrypoint} takes a filtered task with an agent claim and returns null for an empty queue`, () => {
+			withFixture((fixture) => {
+				const issuePath = join(
+					fixture,
+					"issues",
+					"automation",
+					"legacy-task.md",
+				);
+				writeFileSync(
+					issuePath,
+					readFileSync(issuePath, "utf-8").replace(
+						"status: open",
+						"status: ready-for-agent",
+					),
+				);
+
+				const taken = run(fixture, entrypoint, [
+					"take",
+					"--agent",
+					"worker-1",
+					"--lease",
+					"30",
+					"--scope",
+					"automation",
+					"--owner",
+					"human",
+					"--tag",
+					"automation",
+					"--json",
+				]);
+				expect(taken.exitCode).toBe(0);
+				expect(jsonResult(taken).data).toMatchObject({
+					task: { id: "legacy-task", status: "in-progress" },
+					assignment: {
+						task_id: "legacy-task",
+						owner: "worker-1",
+						owner_type: "agent",
+						agent_id: "worker-1",
+					},
+				});
+				expect(
+					(jsonResult(taken).data.assignment as Record<string, unknown>)
+						.claim_id,
+				).toEqual(expect.any(String));
+				expect(existsSync(join(fixture, ".docket-take.lock"))).toBe(false);
+
+				const empty = run(fixture, entrypoint, [
+					"take",
+					"--agent",
+					"worker-2",
+					"--lease",
+					"30",
+					"--tag",
+					"no-match",
+					"--json",
+				]);
+				expect(empty.exitCode).toBe(0);
+				expect(jsonResult(empty).data.task).toBeNull();
+				expect(existsSync(join(fixture, ".docket-take.lock"))).toBe(false);
+			});
+		});
+
+		test(`${entrypoint} expires stale claims and claims the recovered task in one take transaction`, () => {
+			withFixture((fixture) => {
+				const issuePath = join(
+					fixture,
+					"issues",
+					"automation",
+					"legacy-task.md",
+				);
+				writeFileSync(
+					issuePath,
+					readFileSync(issuePath, "utf-8")
+						.replace("status: open", "status: in-progress")
+						.replace("owner: human", "owner: abandoned-agent")
+						.replace("owner_type: human", "owner_type: agent")
+						.replace("agent_id: null", "agent_id: abandoned-agent"),
+				);
+				writeFileSync(
+					join(fixture, "assignments.yaml"),
+					`${LEGACY_ASSIGNMENTS}- task_id: legacy-task
+  status: active
+  owner: abandoned-agent
+  owner_type: agent
+  agent_id: abandoned-agent
+  worktree: null
+  branch: null
+  claim_id: old-claim
+  claimed_at: 2025-01-01T00:00:00.000Z
+  lease_until: 2025-01-01T00:01:00.000Z
+  released_at: null
+`,
+				);
+
+				const taken = run(fixture, entrypoint, [
+					"take",
+					"--agent",
+					"recovery-worker",
+					"--lease",
+					"30",
+					"--json",
+				]);
+				expect(taken.exitCode).toBe(0);
+				expect(jsonResult(taken).data.task).toMatchObject({
+					id: "legacy-task",
+					status: "in-progress",
+					owner: "recovery-worker",
+				});
+				const assignments = readFileSync(
+					join(fixture, "assignments.yaml"),
+					"utf-8",
+				);
+				expect(assignments).toContain("claim_id: old-claim");
+				expect(assignments).toContain("status: expired");
+				expect(assignments).toContain("owner: recovery-worker");
+				const issue = readFileSync(issuePath, "utf-8");
+				expect(issue).toContain("abandoned-agent claim expired");
+				expect(issue).toContain("recovery-worker claimed task");
+				expect(
+					Bun.spawnSync(["git", "log", "-1", "--format=%s"], {
+						cwd: fixture,
+					})
+						.stdout.toString()
+						.trim(),
+				).toBe("take(legacy-task): recovery-worker");
+			});
+		});
+
+		test(`${entrypoint} recovers only a stale abandoned lock and preserves actionable live-lock diagnostics`, () => {
+			withFixture((fixture) => {
+				const issuePath = join(
+					fixture,
+					"issues",
+					"automation",
+					"legacy-task.md",
+				);
+				writeFileSync(
+					issuePath,
+					readFileSync(issuePath, "utf-8").replace(
+						"status: open",
+						"status: ready-for-agent",
+					),
+				);
+				const lockPath = join(fixture, ".docket-take.lock");
+				mkdirSync(lockPath);
+				writeFileSync(
+					join(lockPath, "owner.json"),
+					`${JSON.stringify({
+						pid: -1,
+						agent: "abandoned-worker",
+						created_at: "2025-01-01T00:00:00.000Z",
+						token: "abandoned",
+					})}\n`,
+				);
+				const recovered = run(fixture, entrypoint, [
+					"take",
+					"--agent",
+					"recovery-worker",
+					"--lease",
+					"30",
+					"--json",
+				]);
+				expect(recovered.exitCode).toBe(0);
+				expect(jsonResult(recovered).warnings.join("\n")).toContain(
+					"Recovered stale task acquisition lock",
+				);
+				expect(existsSync(lockPath)).toBe(false);
+
+				mkdirSync(lockPath);
+				writeFileSync(
+					join(lockPath, "owner.json"),
+					`${JSON.stringify({
+						pid: process.pid,
+						agent: "live-worker",
+						created_at: new Date().toISOString(),
+						token: "live",
+					})}\n`,
+				);
+				const blocked = run(fixture, entrypoint, [
+					"take",
+					"--agent",
+					"blocked-worker",
+					"--lease",
+					"30",
+					"--json",
+				]);
+				expect(blocked.exitCode).toBe(3);
+				expect(jsonResult(blocked).error).toMatchObject({
+					code: "TAKE_LOCK_HELD",
+					details: { owner: "live-worker", pid: process.pid },
+				});
+				expect(existsSync(lockPath)).toBe(true);
+			});
+		});
+
+		test(`${entrypoint} rolls back every task file and cleans its lock after staging failure`, () => {
+			withFixture((fixture) => {
+				const issuePath = join(
+					fixture,
+					"issues",
+					"automation",
+					"legacy-task.md",
+				);
+				writeFileSync(
+					issuePath,
+					readFileSync(issuePath, "utf-8").replace(
+						"status: open",
+						"status: ready-for-agent",
+					),
+				);
+				const paths = [
+					join(fixture, "assignments.yaml"),
+					join(fixture, "flow.md"),
+					issuePath,
+				];
+				const before = paths.map((path) => readFileSync(path, "utf-8"));
+				writeFileSync(join(fixture, ".git", "index.lock"), "forced failure\n");
+
+				const failed = run(fixture, entrypoint, [
+					"take",
+					"--agent",
+					"rollback-worker",
+					"--lease",
+					"30",
+				]);
+				expect(failed.exitCode).not.toBe(0);
+				expect(failed.stderr).toContain(
+					"Task state was restored after git staging/commit failed.",
+				);
+				expect(paths.map((path) => readFileSync(path, "utf-8"))).toEqual(
+					before,
+				);
+				expect(existsSync(join(fixture, ".docket-take.lock"))).toBe(false);
+			});
+		});
+
+		test(`${entrypoint} prevents concurrent processes from receiving the same task`, async () => {
+			const fixture = createLegacyFixture();
+			try {
+				const issuePath = join(
+					fixture,
+					"issues",
+					"automation",
+					"legacy-task.md",
+				);
+				writeFileSync(
+					issuePath,
+					readFileSync(issuePath, "utf-8").replace(
+						"status: open",
+						"status: ready-for-agent",
+					),
+				);
+				const hook = join(fixture, ".git", "hooks", "pre-commit");
+				writeFileSync(hook, "#!/bin/sh\nsleep 1\n");
+				chmodSync(hook, 0o755);
+
+				const first = runAsync(fixture, entrypoint, [
+					"take",
+					"--agent",
+					"first-worker",
+					"--lease",
+					"30",
+					"--json",
+				]);
+				await waitForPath(join(fixture, ".docket-take.lock"));
+				const second = await runAsync(fixture, entrypoint, [
+					"take",
+					"--agent",
+					"second-worker",
+					"--lease",
+					"30",
+					"--json",
+				]);
+				const firstResult = await first;
+
+				expect(firstResult.exitCode).toBe(0);
+				expect(jsonResult(firstResult).data.task).toMatchObject({
+					id: "legacy-task",
+				});
+				expect(second.exitCode).toBe(3);
+				expect(jsonResult(second).error.code).toBe("TAKE_LOCK_HELD");
+				expect(
+					readFileSync(join(fixture, "assignments.yaml"), "utf-8").match(
+						/- task_id: legacy-task/g,
+					),
+				).toHaveLength(1);
+				expect(existsSync(join(fixture, ".docket-take.lock"))).toBe(false);
+			} finally {
+				rmSync(fixture, { recursive: true, force: true });
+			}
 		});
 	}
 });
@@ -1162,6 +1489,23 @@ describe("versioned JSON command protocol", () => {
 						).toBe("yago"),
 				],
 				[
+					"take",
+					[
+						"take",
+						"--agent",
+						"json-worker",
+						"--lease",
+						"30",
+						"--status",
+						"open",
+						"--json",
+					],
+					(output: JsonResult) =>
+						expect(
+							(output.data.assignment as Record<string, unknown>).owner,
+						).toBe("json-worker"),
+				],
+				[
 					"triage",
 					["triage", "legacy-task", "ready-for-agent", "--json"],
 					(output: JsonResult) =>
@@ -1211,6 +1555,10 @@ describe("versioned JSON command protocol", () => {
 				const usage = run(fixture, entrypoint, ["claim", "--json"]);
 				expect(usage.exitCode).toBe(2);
 				expect(jsonResult(usage).error.code).toBe("INVALID_USAGE");
+
+				const takeUsage = run(fixture, entrypoint, ["take", "--json"]);
+				expect(takeUsage.exitCode).toBe(2);
+				expect(jsonResult(takeUsage).error.code).toBe("INVALID_USAGE");
 
 				const domain = run(fixture, entrypoint, [
 					"claim",
