@@ -55,6 +55,12 @@ Do not add role slots, participant outcomes, deterministic selection, or local a
 
 ### Implementation Notes
 
+#### 2026-07-28 06:04 UTC — implementation-note — codex-aa07
+
+<!-- docket:note id=note-2026-07-28T06:04:15.389Z kind=implementation-note -->
+
+Implemented claim IDs, strict --claim guards for release and close, renewable leases, and safe expiry-to-reclaim handling in 40fae8c. Verified bun test (58 passing), bun run build, bun run check, task lint, task doctor, and git diff --check. Closure remains blocked by the configured completion policy: this task has no separate application worktree, so related-commit evidence from the Docket ROOT is rejected; acceptance boxes also remain unchecked pending human review.
+
 ### History
 
 - 2026-07-28T06:00:02.910Z — task triaged needs-triage -> ready-for-agent
