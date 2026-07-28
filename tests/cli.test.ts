@@ -355,6 +355,58 @@ function createApplicationFixture(taskId: string): {
 	return { directory, hash: commitIn(directory, `implement ${taskId}`) };
 }
 
+function createSelfHostedCompletionFixture(
+	fixture: string,
+	taskId: string,
+	allowSelfHostedCommitEvidence: boolean,
+): string {
+	writeFileSync(
+		join(fixture, "docket.json"),
+		JSON.stringify({
+			version: 1,
+			completion: {
+				relatedCommits: "agents",
+				allowSelfHostedCommitEvidence,
+			},
+		}),
+	);
+	writeFileSync(
+		join(fixture, "issues", "automation", `${taskId}.md`),
+		`---
+id: ${taskId}
+title: Self-hosted completion task
+status: in-progress
+priority: P2
+owner: codex
+owner_type: agent
+agent_id: codex
+tags: [automation]
+created_at: 2026-07-28
+closed_at: null
+---
+
+## Acceptance Criteria
+
+- [x] implementation is verified
+`,
+	);
+	writeFileSync(
+		join(fixture, "assignments.yaml"),
+		`- task_id: ${taskId}
+  status: active
+  owner: codex
+  owner_type: agent
+  agent_id: codex
+  worktree: ${fixture}
+  branch: main
+  claimed_at: 2026-07-28T10:00:00.000Z
+  lease_until: 2026-07-28T12:00:00.000Z
+  released_at: null
+`,
+	);
+	return commitIn(fixture, `implement ${taskId}`);
+}
+
 function createUpdateArchive(): string {
 	const directory = mkdtempSync(join(tmpdir(), "docket-update-archive-"));
 	const source = join(directory, "docket-fixtures");
@@ -609,6 +661,76 @@ closed_at: null
 				} finally {
 					rmSync(app.directory, { recursive: true, force: true });
 				}
+			});
+		});
+
+		test(`${entrypoint} rejects self-hosted commit evidence by default`, () => {
+			withFixture((fixture) => {
+				const taskId = "self-hosted-default";
+				const implementation = createSelfHostedCompletionFixture(
+					fixture,
+					taskId,
+					false,
+				);
+				const close = run(fixture, entrypoint, [
+					"close",
+					taskId,
+					"--commit",
+					implementation,
+				]);
+				expect(close.exitCode).not.toBe(0);
+				expect(close.stderr).toContain(
+					"completion.allowSelfHostedCommitEvidence: true",
+				);
+			});
+		});
+
+		test(`${entrypoint} accepts opted-in self-hosted implementation evidence`, () => {
+			withFixture((fixture) => {
+				const taskId = "self-hosted-opt-in";
+				const implementation = createSelfHostedCompletionFixture(
+					fixture,
+					taskId,
+					true,
+				);
+				const close = run(fixture, entrypoint, [
+					"close",
+					taskId,
+					"--commit",
+					implementation,
+				]);
+				expect(close.exitCode).toBe(0);
+				expect(
+					readFileSync(
+						join(
+							fixture,
+							"issues",
+							"automation",
+							"done",
+							`${new Date().toISOString().slice(0, 10)}-${taskId}.md`,
+						),
+						"utf-8",
+					),
+				).toContain(implementation);
+			});
+		});
+
+		test(`${entrypoint} rejects self-hosted lifecycle commits even when opted in`, () => {
+			withFixture((fixture) => {
+				const taskId = "self-hosted-lifecycle";
+				createSelfHostedCompletionFixture(fixture, taskId, true);
+				writeFileSync(join(fixture, "lifecycle.txt"), "state-only\n");
+				const lifecycle = commitIn(fixture, `note(${taskId}): lifecycle`);
+				const close = run(fixture, entrypoint, [
+					"close",
+					taskId,
+					"--commit",
+					lifecycle,
+				]);
+				expect(close.exitCode).not.toBe(0);
+				expect(close.stderr).toContain(
+					"Docket state evidence, not an implementation commit",
+				);
 			});
 		});
 	}

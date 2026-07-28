@@ -114,6 +114,26 @@ while letting humans and agents use the short `./task ...` command everywhere.
 only docket-managed paths from the task worktree. If git staging or commit
 fails, the CLI restores the touched task files before surfacing the error.
 
+## Completion policies
+
+`docket.json` can require acceptance criteria, active assignments, clean
+worktrees, and implementation commit evidence when closing issues. Commit
+evidence normally must come from a separate application worktree. A repository
+that runs Docket on itself may opt in to evidence from Docket's own root:
+
+```json
+{
+  "version": 1,
+  "completion": {
+    "allowSelfHostedCommitEvidence": true
+  }
+}
+```
+
+The default is `false`. This setting uses the canonical worktree identity, not
+the spelling of its path, and never permits Docket lifecycle commits such as
+`claim(...)`, `triage(...)`, or `close(...)` as implementation evidence.
+
 To update an existing install:
 
 ```bash

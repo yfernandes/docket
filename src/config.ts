@@ -14,6 +14,7 @@ export interface DocketConfig {
 		cleanWorktree: CompletionPolicy;
 		requireActiveAssignment: CompletionPolicy;
 		allowOverride: boolean;
+		allowSelfHostedCommitEvidence: boolean;
 	};
 }
 
@@ -26,6 +27,7 @@ export const DEFAULT_CONFIG: DocketConfig = {
 		cleanWorktree: "off",
 		requireActiveAssignment: "off",
 		allowOverride: true,
+		allowSelfHostedCommitEvidence: false,
 	},
 };
 
@@ -99,6 +101,7 @@ export function readFileConfig(path = configPath()): Partial<DocketConfig> {
 					"cleanWorktree",
 					"requireActiveAssignment",
 					"allowOverride",
+					"allowSelfHostedCommitEvidence",
 				]).has(key)
 			)
 				throw new ConfigValidationError(
@@ -120,6 +123,13 @@ export function readFileConfig(path = configPath()): Partial<DocketConfig> {
 		)
 			throw new ConfigValidationError(
 				"completion.allowOverride must be a boolean",
+			);
+		if (
+			completion.allowSelfHostedCommitEvidence !== undefined &&
+			typeof completion.allowSelfHostedCommitEvidence !== "boolean"
+		)
+			throw new ConfigValidationError(
+				"completion.allowSelfHostedCommitEvidence must be a boolean",
 			);
 		result.completion = completion as DocketConfig["completion"];
 	}

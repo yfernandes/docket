@@ -5,6 +5,7 @@
 		"relatedCommits": "all",
 		"cleanWorktree": "off",
 		"requireActiveAssignment": "all",
-		"allowOverride": false
+		"allowOverride": false,
+		"allowSelfHostedCommitEvidence": true
 	}
 }

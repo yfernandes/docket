@@ -1159,10 +1159,13 @@ async function applicationWorktree(
 			warning: `Recorded application worktree '${assignment.worktree}' cannot be resolved. Use commits add with an explicit hash after restoring the repository.`,
 		};
 	}
-	if (worktree === realpathSync(ROOT))
+	if (
+		worktree === realpathSync(ROOT) &&
+		!effectiveConfig().completion.allowSelfHostedCommitEvidence
+	)
 		return {
 			warning:
-				"Recorded worktree is Docket's task worktree. Docket state commits are never implementation commits; use a separate application worktree.",
+				"Recorded worktree is Docket's task worktree. Enable completion.allowSelfHostedCommitEvidence only for a self-hosted Docket installation.",
 		};
 	const probe = await gitIn(worktree, ["rev-parse", "--is-inside-work-tree"]);
 	if (probe.exitCode !== 0 || probe.stdout !== "true")
@@ -1378,14 +1381,18 @@ async function commitEvidence(
 	taskId: string,
 	assignment: Assignment | undefined,
 	hashes: string[],
+	allowSelfHostedCommitEvidence: boolean,
 ): Promise<{ hash: string; subject: string }[]> {
 	if (!assignment?.worktree)
 		throw new Error(
 			`Related commits require an active assignment with --worktree. Re-claim ${taskId} with --worktree <application-repository>.`,
 		);
-	if (assignment.worktree === ROOT)
+	if (
+		realpathSync(assignment.worktree) === realpathSync(ROOT) &&
+		!allowSelfHostedCommitEvidence
+	)
 		throw new Error(
-			"Related commits must come from the application worktree, not Docket's task worktree.",
+			"Related commits from Docket's own root require completion.allowSelfHostedCommitEvidence: true.",
 		);
 	const evidence: { hash: string; subject: string }[] = [];
 	for (const value of hashes) {
@@ -1402,7 +1409,7 @@ async function commitEvidence(
 		const message = (
 			await $`git -C ${assignment.worktree} show -s --format=%B ${hash}`.text()
 		).trim();
-		if (/^(claim|triage|close)\(/.test(subject))
+		if (isDocketStateCommit(subject))
 			throw new Error(
 				`Commit '${hash}' is Docket state evidence, not an implementation commit.`,
 			);
@@ -1501,7 +1508,12 @@ export async function cmdClose(args: string[]) {
 				);
 			else {
 				try {
-					evidence = await commitEvidence(taskId, assignment, commitHashes);
+					evidence = await commitEvidence(
+						taskId,
+						assignment,
+						commitHashes,
+						config.completion.allowSelfHostedCommitEvidence,
+					);
 				} catch (error) {
 					failures.push(error instanceof Error ? error.message : String(error));
 				}

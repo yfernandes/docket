@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { effectiveConfig, readFileConfig } from "../src/config";
+import { DEFAULT_CONFIG, effectiveConfig, readFileConfig } from "../src/config";
 
 describe("docket configuration", () => {
 	test("validates versions and policies without runtime dependencies", () => {
@@ -19,6 +19,16 @@ describe("docket configuration", () => {
 				}),
 			);
 			expect(() => readFileConfig(path)).toThrow("off, agents, all");
+			writeFileSync(
+				path,
+				JSON.stringify({
+					version: 1,
+					completion: { allowSelfHostedCommitEvidence: "yes" },
+				}),
+			);
+			expect(() => readFileConfig(path)).toThrow(
+				"allowSelfHostedCommitEvidence must be a boolean",
+			);
 		} finally {
 			rmSync(directory, { recursive: true, force: true });
 		}
@@ -44,5 +54,9 @@ describe("docket configuration", () => {
 			if (oldBranch === undefined) delete process.env.DOCKET_BRANCH;
 			else process.env.DOCKET_BRANCH = oldBranch;
 		}
+	});
+
+	test("defaults self-hosted commit evidence to disabled", () => {
+		expect(DEFAULT_CONFIG.completion.allowSelfHostedCommitEvidence).toBe(false);
 	});
 });
