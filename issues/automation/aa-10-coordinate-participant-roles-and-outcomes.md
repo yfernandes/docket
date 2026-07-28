@@ -1,7 +1,7 @@
 ---
 id: aa-10-coordinate-participant-roles-and-outcomes
 title: AA-10 Coordinate participant roles and outcomes
-status: needs-triage
+status: ready-for-agent
 priority: P2
 owner: human
 owner_type: human
@@ -49,3 +49,18 @@ Do not enforce fixture capacity, stage ordering, agent launching, or model confi
 - `docs/agent-automation-plan.md#assignment-and-participation-model`
 - `docs/agent-automation-plan.md#finish`
 - `docs/agent-automation-plan.md#aa-10--participant-roles-slots-runs-and-finish`
+
+## Task Log
+
+<!-- docket:task-log:start -->
+
+### Commits
+
+### Implementation Notes
+
+### History
+
+- 2026-07-28T06:21:19.743Z — task triaged needs-triage -> ready-for-agent
+<!-- docket:event id=triage-2026-07-28T06:21:19.743Z -->
+
+<!-- docket:task-log:end -->
