@@ -1,14 +1,14 @@
 ---
 id: add-regular-branch-install-mode
 title: Add regular-branch install mode
-status: in-progress
+status: done
 priority: P2
 owner: codex
 owner_type: agent
 agent_id: codex
 tags: [libs]
 created_at: 2026-07-28
-closed_at: null
+closed_at: 2026-07-28
 ---
 
 ## Context
@@ -51,6 +51,9 @@ from the current `HEAD` instead of an orphan branch.
 - `9ffedc85c226` feat(setup): support regular worktree branches
 <!-- docket:commit hash=9ffedc85c226a80d6e88e0ff18df8e9637b79dd8 -->
 
+- `077b0524560a` chore(add-regular-branch-install-mode): link implementation
+<!-- docket:commit hash=077b0524560a8d0b2989bfa7a91ea57c63f947f1 -->
+
 ### Implementation Notes
 
 ### History
@@ -69,5 +72,8 @@ from the current `HEAD` instead of an orphan branch.
 
 - 2026-07-28T12:34:39.186Z — codex claimed task
 <!-- docket:event id=claim-2026-07-28T12:34:39.186Z -->
+
+- 2026-07-28 — task closed by codex
+<!-- docket:event id=close-2026-07-28 -->
 
 <!-- docket:task-log:end -->
