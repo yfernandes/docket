@@ -299,3 +299,15 @@
   claimed_at: 2026-07-28T07:21:16.651Z
   lease_until: 2026-07-28T09:21:16.643Z
   released_at: 2026-07-28T07:21:25.185Z
+- task_id: aa-05-record-notes-and-lifecycle-history
+  status: active
+  owner: codex-reconcile
+  owner_type: agent
+  agent_id: codex-reconcile
+  worktree: /home/yago/projects/active/docket
+  branch: null
+  claim_id: 55c4e91c-d9e0-4032-90cd-6072d4854a8e
+  base_commit: 8524a47fde9bab7da44f65a0efdfb9524b8b6f08
+  claimed_at: 2026-07-28T07:21:31.825Z
+  lease_until: 2026-07-28T09:21:31.815Z
+  released_at: null
