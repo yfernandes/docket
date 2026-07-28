@@ -58,6 +58,12 @@ Do not enforce fixture capacity, stage ordering, agent launching, or model confi
 
 ### Implementation Notes
 
+#### 2026-07-28 06:31 UTC — implementation-note — codex-aa10
+
+<!-- docket:note id=note-2026-07-28T06:31:12.396Z claim=bf5fdff2-dc9a-47fa-9a56-c8c548fafd9d kind=implementation-note -->
+
+Implemented participant roles, distinct slots, guarded finish outcomes, atomic Task Log notes, and primary/participant show reporting in e5bfbea. Verified bun test (78 tests), build, check, lint, doctor, and diff check. Closure remains blocked by the documented self-hosted completion policy: this Docket repository has no separate application worktree accepted by related-commit and clean-worktree gates; acceptance boxes also remain authored unchecked and must not be hand-edited.
+
 ### History
 
 - 2026-07-28T06:21:19.743Z — task triaged needs-triage -> ready-for-agent
