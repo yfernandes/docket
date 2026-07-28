@@ -13,6 +13,7 @@ Canonical tracker for planning and execution state.
 
 ## Agent Queue
 - [-] [AA-03 Add JSON output and stable errors to every command](issues/automation/aa-03-add-json-output-and-stable-errors-to-every-command.md) (id:aa-03-add-json-output-and-stable-errors-to-every-command) — codex since 2026-07-28
+- [-] [AA-04 Show complete task context](issues/automation/aa-04-show-complete-task-context.md) (id:aa-04-show-complete-task-context) — codex since 2026-07-28
 
 ## Issue Scratchpad
 

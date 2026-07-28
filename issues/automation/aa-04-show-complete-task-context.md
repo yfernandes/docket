@@ -1,11 +1,11 @@
 ---
 id: aa-04-show-complete-task-context
 title: AA-04 Show complete task context
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex
+owner_type: agent
+agent_id: codex
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -45,3 +45,18 @@ Do not add note creation, commit detection, fixture slot calculation, or cross-t
 
 - `docs/agent-automation-plan.md#show`
 - `docs/agent-automation-plan.md#aa-04--show-and-task-context`
+
+## Task Log
+
+<!-- docket:task-log:start -->
+
+### Commits
+
+### Implementation Notes
+
+### History
+
+- 2026-07-28T00:18:01.616Z — codex claimed task
+<!-- docket:event id=claim-2026-07-28T00:18:01.616Z -->
+
+<!-- docket:task-log:end -->
