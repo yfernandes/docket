@@ -1,11 +1,11 @@
 ---
 id: aa-11-add-crew-fixtures-and-slot-visibility
 title: AA-11 Add crew fixtures and slot visibility
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex-aa11
+owner_type: agent
+agent_id: codex-aa11
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -58,5 +58,8 @@ Do not build a workflow engine. Conditional implement/review/fix sequencing rema
 
 - 2026-07-28T06:32:56.099Z — task triaged needs-triage -> ready-for-agent
 <!-- docket:event id=triage-2026-07-28T06:32:56.099Z -->
+
+- 2026-07-28T06:32:56.138Z — codex-aa11 claimed task
+<!-- docket:event id=claim-2026-07-28T06:32:56.138Z -->
 
 <!-- docket:task-log:end -->

@@ -111,3 +111,14 @@
   claimed_at: 2026-07-28T06:21:25.960Z
   lease_until: 2026-07-28T10:21:25.960Z
   released_at: null
+- task_id: aa-11-add-crew-fixtures-and-slot-visibility
+  status: active
+  owner: codex-aa11
+  owner_type: agent
+  agent_id: codex-aa11
+  worktree: null
+  branch: null
+  claim_id: c6f4a44c-4ed9-4edf-9bbf-73be95d7b23b
+  claimed_at: 2026-07-28T06:32:56.138Z
+  lease_until: 2026-07-28T10:32:56.138Z
+  released_at: null

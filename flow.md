@@ -17,6 +17,7 @@ Canonical tracker for planning and execution state.
 - [-] [AA-08 Select the next task deterministically](issues/automation/aa-08-select-the-next-task-deterministically.md) (id:aa-08-select-the-next-task-deterministically) — codex-aa08 since 2026-07-28
 - [-] [AA-09 Take the next task atomically](issues/automation/aa-09-take-the-next-task-atomically.md) (id:aa-09-take-the-next-task-atomically) — codex-aa09 since 2026-07-28
 - [-] [AA-10 Coordinate participant roles and outcomes](issues/automation/aa-10-coordinate-participant-roles-and-outcomes.md) (id:aa-10-coordinate-participant-roles-and-outcomes) — codex-aa10 since 2026-07-28
+- [-] [AA-11 Add crew fixtures and slot visibility](issues/automation/aa-11-add-crew-fixtures-and-slot-visibility.md) (id:aa-11-add-crew-fixtures-and-slot-visibility) — codex-aa11 since 2026-07-28
 
 ## Issue Scratchpad
 
