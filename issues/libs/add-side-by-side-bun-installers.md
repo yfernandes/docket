@@ -1,11 +1,11 @@
 ---
 id: add-side-by-side-bun-installers
 title: Add side-by-side Bun installers
-status: in-progress
+status: open
 priority: P2
-owner: codex
-owner_type: agent
-agent_id: codex
+owner: human
+owner_type: human
+agent_id: null
 tags: [libs]
 created_at: 2026-07-28
 closed_at: null
@@ -67,5 +67,8 @@ of their Bash counterparts while leaving the existing scripts unchanged.
 
 - 2026-07-28T12:46:32.814Z — codex claimed task
 <!-- docket:event id=claim-2026-07-28T12:46:32.814Z -->
+
+- 2026-07-28T12:48:24.553Z — codex released task
+<!-- docket:event id=release-2026-07-28T12:48:24.553Z -->
 
 <!-- docket:task-log:end -->
