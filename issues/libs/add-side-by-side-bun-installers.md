@@ -1,7 +1,7 @@
 ---
 id: add-side-by-side-bun-installers
 title: Add side-by-side Bun installers
-status: needs-triage
+status: ready-for-agent
 priority: P2
 owner: human
 owner_type: human
@@ -13,65 +13,33 @@ closed_at: null
 
 ## Context
 
+The supported setup and update entrypoints are Bash scripts. Docket already
+requires Bun, and a side-by-side implementation will let the project evaluate
+a typed replacement without changing the current bootstrap contract.
+
 ## Objective
+
+Add executable Bun setup and update scripts that match the supported behavior
+of their Bash counterparts while leaving the existing scripts unchanged.
 
 ## Constraints
 
+- Do not switch README or setup instructions to the Bun entrypoints yet.
+- Preserve orphan and regular-branch setup modes.
+- Preserve update ownership boundaries, including user fixture files.
+- Keep Git commits and verification behavior compatible with the Bash scripts.
+
 ## Acceptance Criteria
 
-## Implementation Checklist
-
-### Frontend Checklist
-
-- [ ] UI matches design reference (Figma or equivalent)
-- [ ] Component is isolated and reusable (no hidden coupling)
-- [ ] Storybook story created or updated
-  - [ ] Default state
-  - [ ] Edge states (loading, empty, error)
-- [ ] Props are minimal and well-defined
-- [ ] No business logic leaked into UI layer
-- [ ] Responsive behavior verified (mobile + desktop)
-- [ ] Accessibility basics covered (labels, roles, keyboard)
-
-### Backend Checklist
-
-- [ ] Clear input/output contract defined
-- [ ] Validation implemented at boundaries
-- [ ] No silent failures (explicit error handling)
-- [ ] Idempotency considered where applicable
-- [ ] No tight coupling to external services
-- [ ] Logging added for critical paths
-- [ ] Performance implications considered
-
-### Testing Checklist
-
-- [ ] Unit tests cover core logic
-- [ ] Edge cases explicitly tested
-- [ ] Happy path verified
-- [ ] Regression risk areas covered
-- [ ] Tests are deterministic (no flaky timing deps)
-
-### Integration Checklist
-
-- [ ] External dependency identified (API, service, SDK)
-- [ ] Failure modes mapped (timeouts, bad responses)
-- [ ] Retry / fallback strategy defined (if needed)
-- [ ] Data contracts validated (no implicit assumptions)
-- [ ] Version compatibility considered
-
-### Delivery Checklist
-
-- [ ] Branch created: `feat/<slug>` or `fix/<slug>`
-- [ ] Small, reviewable commits
-- [ ] No unrelated changes included
-- [ ] PR includes context and testing notes
-- [ ] CI passing
+- [ ] A Bun setup entrypoint supports the Bash setup flags and environment.
+- [ ] A Bun update entrypoint preserves managed files and user fixtures.
+- [ ] Shared implementation details are testable without invoking remote services.
+- [ ] Integration tests exercise orphan setup, regular setup, and update.
+- [ ] Existing Bash scripts and documented commands remain the supported default.
 
 ## References
 
-- Figma:
-- API Docs:
-- Related Issue:
+- Follow-up to `add-regular-branch-install-mode`.
 
 ## Notes
 
@@ -87,5 +55,8 @@ closed_at: null
 
 - 2026-07-28T12:39:19.874Z — task created by human
 <!-- docket:event id=create-2026-07-28T12:39:19.874Z -->
+
+- 2026-07-28T12:39:40.652Z — task triaged needs-triage -> ready-for-agent
+<!-- docket:event id=triage-2026-07-28T12:39:40.652Z -->
 
 <!-- docket:task-log:end -->
