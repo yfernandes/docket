@@ -101,7 +101,7 @@
   lease_until: 2026-07-28T10:09:38.200Z
   released_at: 2026-07-28T07:10:32.024Z
 - task_id: aa-10-coordinate-participant-roles-and-outcomes
-  status: active
+  status: released
   owner: codex-aa10
   owner_type: agent
   agent_id: codex-aa10
@@ -110,7 +110,7 @@
   claim_id: bf5fdff2-dc9a-47fa-9a56-c8c548fafd9d
   claimed_at: 2026-07-28T06:21:25.960Z
   lease_until: 2026-07-28T10:21:25.960Z
-  released_at: null
+  released_at: 2026-07-28T07:11:04.515Z
 - task_id: aa-11-add-crew-fixtures-and-slot-visibility
   status: active
   owner: codex-aa11
