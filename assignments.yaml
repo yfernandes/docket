@@ -264,7 +264,7 @@
   lease_until: 2026-07-28T09:12:46.856Z
   released_at: 2026-07-28T07:13:09.927Z
 - task_id: aa-15-accept-canonical-issue-keys-in-commit-evidence
-  status: active
+  status: released
   owner: codex-aa15
   owner_type: agent
   agent_id: codex-aa15
@@ -274,4 +274,4 @@
   base_commit: f56ab930ae7b546f26ce960d717a292211205fc6
   claimed_at: 2026-07-28T07:16:18.838Z
   lease_until: 2026-07-28T11:16:18.830Z
-  released_at: null
+  released_at: 2026-07-28T07:20:17.720Z

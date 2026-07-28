@@ -1,14 +1,14 @@
 ---
 id: aa-15-accept-canonical-issue-keys-in-commit-evidence
 title: AA-15 Accept canonical issue keys in commit evidence
-status: in-progress
+status: done
 priority: P2
 owner: codex-aa15
 owner_type: agent
 agent_id: codex-aa15
 tags: [automation]
 created_at: 2026-07-28
-closed_at: null
+closed_at: 2026-07-28
 ---
 
 ## Context
@@ -67,6 +67,9 @@ commit protections intact.
 
 ### Commits
 
+- `af6d77befdd0` feat(aa-15-accept-canonical-issue-keys-in-commit-evidence): accept canonical commit keys
+<!-- docket:commit hash=af6d77befdd063c3a4be108d0320e9ac01422755 -->
+
 ### Implementation Notes
 
 #### 2026-07-28 07:20 UTC — review — codex-aa15
@@ -85,5 +88,8 @@ Scoped manual review completed; Hunk skipped for the authorized unattended run. 
 
 - 2026-07-28T07:16:18.838Z — codex-aa15 claimed task
 <!-- docket:event id=claim-2026-07-28T07:16:18.838Z -->
+
+- 2026-07-28 — task closed by codex-aa15
+<!-- docket:event id=close-2026-07-28 -->
 
 <!-- docket:task-log:end -->
