@@ -1,11 +1,11 @@
 ---
 id: aa-04-show-complete-task-context
 title: AA-04 Show complete task context
-status: in-progress
+status: open
 priority: P2
-owner: codex-reconcile
-owner_type: agent
-agent_id: codex-reconcile
+owner: human
+owner_type: human
+agent_id: null
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -76,5 +76,8 @@ Reconciliation: all acceptance criteria were independently verified and implemen
 
 - 2026-07-28T07:08:24.986Z — codex-reconcile claimed task
 <!-- docket:event id=claim-2026-07-28T07:08:24.986Z -->
+
+- 2026-07-28T07:08:45.162Z — codex-reconcile released task
+<!-- docket:event id=release-2026-07-28T07:08:45.162Z -->
 
 <!-- docket:task-log:end -->

@@ -168,7 +168,7 @@
   lease_until: 2026-07-28T09:07:30.054Z
   released_at: 2026-07-28T07:08:08.485Z
 - task_id: aa-04-show-complete-task-context
-  status: active
+  status: released
   owner: codex-reconcile
   owner_type: agent
   agent_id: codex-reconcile
@@ -178,4 +178,4 @@
   base_commit: 9366dc961aca05410c2f34c80d590296cb318fe7
   claimed_at: 2026-07-28T07:08:24.986Z
   lease_until: 2026-07-28T09:08:24.979Z
-  released_at: null
+  released_at: 2026-07-28T07:08:45.162Z
