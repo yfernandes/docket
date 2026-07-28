@@ -1,11 +1,11 @@
 ---
 id: aa-13-document-and-verify-reference-agent-loops
 title: AA-13 Document and verify reference agent loops
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex-aa13
+owner_type: agent
+agent_id: codex-aa13
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -60,5 +60,8 @@ Do not add model configuration, prompt templates, a daemon, or an agent launcher
 
 - 2026-07-28T06:49:12.059Z — task triaged needs-triage -> ready-for-agent
 <!-- docket:event id=triage-2026-07-28T06:49:12.059Z -->
+
+- 2026-07-28T06:49:12.098Z — codex-aa13 claimed task
+<!-- docket:event id=claim-2026-07-28T06:49:12.098Z -->
 
 <!-- docket:task-log:end -->

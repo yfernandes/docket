@@ -133,3 +133,14 @@
   claimed_at: 2026-07-28T06:43:12.973Z
   lease_until: 2026-07-28T10:43:12.973Z
   released_at: null
+- task_id: aa-13-document-and-verify-reference-agent-loops
+  status: active
+  owner: codex-aa13
+  owner_type: agent
+  agent_id: codex-aa13
+  worktree: null
+  branch: null
+  claim_id: 241958aa-2101-499c-94ca-b8adaf907c3b
+  claimed_at: 2026-07-28T06:49:12.098Z
+  lease_until: 2026-07-28T10:49:12.098Z
+  released_at: null
