@@ -1,7 +1,7 @@
 ---
 id: aa-03-add-json-output-and-stable-errors-to-every-command
 title: AA-03 Add JSON output and stable errors to every command
-status: in-progress
+status: ready-for-agent
 priority: P2
 owner: codex
 owner_type: agent
@@ -61,5 +61,8 @@ Do not add `show`, `next`, `take`, claim IDs, or crew behavior. This task establ
 
 - 2026-07-28T04:57:09.925Z — codex claim expired
 <!-- docket:event id=expiry-2026-07-28T04:00:17.206Z -->
+
+- 2026-07-28T07:07:21.380Z — task triaged in-progress -> ready-for-agent
+<!-- docket:event id=triage-2026-07-28T07:07:21.380Z -->
 
 <!-- docket:task-log:end -->
