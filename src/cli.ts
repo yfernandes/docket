@@ -14,6 +14,7 @@ import {
 	cmdNote,
 	cmdRelease,
 	cmdRender,
+	cmdRenew,
 	cmdShow,
 	cmdTriage,
 } from "./commands";
@@ -36,6 +37,10 @@ Commands:
   triage <task-id> <status> Update issue triage status
   release <task-id>         Release a task back to open
     --reason <note>         Optional reason
+    --claim <claim-id>      Require a matching active agent claim
+  renew <task-id>           Renew an active agent claim
+    --claim <claim-id>      Required active claim identity
+    --lease <minutes>       Required lease duration
   close <task-id>           Mark done and archive
     --wontfix              Archive as wontfix instead of done
     --commit <hash>         Record validated implementation evidence
@@ -88,6 +93,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 				return cmdTriage(rest);
 			case "release":
 				return cmdRelease(rest);
+			case "renew":
+				return cmdRenew(rest);
 			case "close":
 				return cmdClose(rest);
 			case "config":

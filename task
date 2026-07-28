@@ -351,6 +351,7 @@ function toAssignment(r) {
     agent_id: r.agent_id ?? null,
     worktree: r.worktree ?? null,
     branch: r.branch ?? null,
+    claim_id: r.claim_id ?? null,
     base_commit: r.base_commit ?? null,
     claimed_at: r.claimed_at ?? new Date().toISOString(),
     lease_until: r.lease_until ?? null,
@@ -365,6 +366,7 @@ var ASSIGNMENT_KEYS = [
   "agent_id",
   "worktree",
   "branch",
+  "claim_id",
   "claimed_at",
   "lease_until",
   "released_at"
@@ -376,7 +378,8 @@ function serializeAssignments(records) {
   return `${records.map((r) => {
     const [first, ...rest] = ASSIGNMENT_KEYS;
     const keys = [
-      ...rest.slice(0, rest.indexOf("claimed_at")),
+      ...rest.slice(0, rest.indexOf("claimed_at")).filter((key) => key !== "claim_id"),
+      ...r.claim_id ? ["claim_id"] : [],
       ...r.base_commit ? ["base_commit"] : [],
       ...rest.slice(rest.indexOf("claimed_at"))
     ];
@@ -772,6 +775,8 @@ function die2(msg) {
     domainError(msg, "TASK_NOT_FOUND");
   if (msg.startsWith("No active assignment"))
     domainError(msg, "NO_ACTIVE_ASSIGNMENT");
+  if (msg.startsWith("Claim '"))
+    domainError(msg, "CLAIM_MISMATCH");
   if (msg.includes("cannot be claimed"))
     domainError(msg, "TASK_NOT_CLAIMABLE");
   if (msg.startsWith("Triage status"))
@@ -1048,6 +1053,7 @@ async function cmdClaim(args) {
     agent_id: agentId,
     worktree,
     branch,
+    claim_id: ownerType === "agent" ? crypto.randomUUID() : null,
     base_commit: baseCommit,
     claimed_at: new Date().toISOString(),
     lease_until: leaseUntil,
@@ -1089,6 +1095,48 @@ async function cmdClaim(args) {
   console.log(`Claimed '${taskId}' by '${owner}'`);
   return { task_id: taskId, assignment: record };
 }
+function activeAssignmentIndex(assignments, taskId) {
+  return assignments.findIndex((assignment) => assignment.task_id === taskId && assignment.status === "active");
+}
+function requireClaim(assignment, taskId, claimId) {
+  if (!claimId)
+    return;
+  if (!assignment || assignment.claim_id !== claimId)
+    die2(`Claim '${claimId}' is not the active claim for '${taskId}'`);
+}
+function leaseFromNow(value) {
+  const minutes = value ? Number(value) : NaN;
+  if (!Number.isInteger(minutes) || minutes <= 0)
+    die2("Usage: task renew <task-id> --claim <claim-id> --lease <minutes>");
+  return {
+    minutes,
+    until: new Date(Date.now() + minutes * 60000).toISOString()
+  };
+}
+async function cmdRenew(args) {
+  const taskId = args[0];
+  const flags = parseFlags(args.slice(1));
+  if (!taskId || !flags.claim)
+    die2("Usage: task renew <task-id> --claim <claim-id> --lease <minutes>");
+  const lease = leaseFromNow(flags.lease);
+  const assignments = readAssignments();
+  const idx = activeAssignmentIndex(assignments, taskId);
+  const assignment = idx === -1 ? undefined : assignments[idx];
+  requireClaim(assignment, taskId, flags.claim);
+  if (assignment?.owner_type !== "agent")
+    die2(`Claim '${flags.claim}' is not the active claim for '${taskId}'`);
+  await commitWithRollback(`renew(${taskId})`, [ASSIGNMENTS_PATH], async () => {
+    assignments[idx].lease_until = lease.until;
+    writeAssignments(assignments);
+    await gitAdd([ASSIGNMENTS_PATH]);
+  });
+  console.log(`Renewed '${taskId}' until ${lease.until}`);
+  return {
+    task_id: taskId,
+    assignment: assignments[idx],
+    lease_minutes: lease.minutes
+  };
+}
 async function cmdTriage(args) {
   const taskId = args[0];
   const newStatus = args[1];
@@ -1128,11 +1176,13 @@ async function cmdTriage(args) {
 async function cmdRelease(args) {
   const taskId = args[0];
   if (!taskId)
-    die2("Usage: task release <task-id> [--reason <note>]");
+    die2("Usage: task release <task-id> [--reason <note>] [--claim <claim-id>]");
+  const flags = parseFlags(args.slice(1));
   const assignments = readAssignments();
-  const idx = assignments.findIndex((a) => a.task_id === taskId && a.status === "active");
+  const idx = activeAssignmentIndex(assignments, taskId);
   if (idx === -1)
     die2(`No active assignment for '${taskId}'`);
+  requireClaim(assignments[idx], taskId, flags.claim);
   const issuePath = findIssueFile(taskId);
   const changedFiles = [ASSIGNMENTS_PATH];
   if (issuePath)
@@ -1464,12 +1514,11 @@ async function cmdClose(args) {
   data.status = wontfix ? "wontfix" : "done";
   data.closed_at = today();
   const doneDir = join3(ROOT, "issues", scope, "done");
-  if (!existsSync3(doneDir))
-    mkdirSync(doneDir, { recursive: true });
   const newPath = join3(doneDir, `${today()}-${taskId}.md`);
   const assignments = readAssignments();
   const idx = assignments.findIndex((a) => a.task_id === taskId && a.status === "active");
   const assignment = idx === -1 ? undefined : assignments[idx];
+  requireClaim(assignment, taskId, flags.claim);
   const config = effectiveConfig();
   const force = "force" in flags;
   const reason = flags.reason?.trim();
@@ -1511,6 +1560,8 @@ async function cmdClose(args) {
     flags.__evidence = JSON.stringify(evidence);
   }
   await commitWithRollback(`close(${taskId})`, [issuePath, newPath, FLOW_PATH, ASSIGNMENTS_PATH], async () => {
+    if (!existsSync3(doneDir))
+      mkdirSync(doneDir, { recursive: true });
     let updatedBody = body;
     for (const commit of JSON.parse(flags.__evidence ?? "[]"))
       updatedBody = appendCommit(updatedBody, commit);
@@ -1562,6 +1613,10 @@ async function cmdDoctor() {
         if (!issuePath)
           continue;
         const { data, body } = readIssue(issuePath);
+        data.status = "ready-for-agent";
+        data.owner = "human";
+        data.owner_type = "human";
+        data.agent_id = null;
         const expiredAt = now.toISOString();
         writeIssue(issuePath, data, appendHistoryEvent(body, {
           id: `expiry-${assignment.lease_until}`,
@@ -1932,6 +1987,10 @@ Commands:
   triage <task-id> <status> Update issue triage status
   release <task-id>         Release a task back to open
     --reason <note>         Optional reason
+    --claim <claim-id>      Require a matching active agent claim
+  renew <task-id>           Renew an active agent claim
+    --claim <claim-id>      Required active claim identity
+    --lease <minutes>       Required lease duration
   close <task-id>           Mark done and archive
     --wontfix              Archive as wontfix instead of done
     --commit <hash>         Record validated implementation evidence
@@ -1983,6 +2042,8 @@ async function main(args = process.argv.slice(2)) {
         return cmdTriage(rest);
       case "release":
         return cmdRelease(rest);
+      case "renew":
+        return cmdRenew(rest);
       case "close":
         return cmdClose(rest);
       case "config":

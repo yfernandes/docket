@@ -66,6 +66,7 @@ export function die(msg: string): never {
 	if (msg.startsWith("Issue not found")) domainError(msg, "TASK_NOT_FOUND");
 	if (msg.startsWith("No active assignment"))
 		domainError(msg, "NO_ACTIVE_ASSIGNMENT");
+	if (msg.startsWith("Claim '")) domainError(msg, "CLAIM_MISMATCH");
 	if (msg.includes("cannot be claimed")) domainError(msg, "TASK_NOT_CLAIMABLE");
 	if (msg.startsWith("Triage status")) domainError(msg, "INVALID_STATUS");
 	if (msg.startsWith("Template not found"))
@@ -396,6 +397,7 @@ export async function cmdClaim(args: string[]) {
 		agent_id: agentId,
 		worktree,
 		branch,
+		claim_id: ownerType === "agent" ? crypto.randomUUID() : null,
 		base_commit: baseCommit,
 		claimed_at: new Date().toISOString(),
 		lease_until: leaseUntil,
@@ -449,6 +451,67 @@ export async function cmdClaim(args: string[]) {
 	);
 	console.log(`Claimed '${taskId}' by '${owner}'`);
 	return { task_id: taskId, assignment: record };
+}
+
+function activeAssignmentIndex(
+	assignments: Assignment[],
+	taskId: string,
+): number {
+	return assignments.findIndex(
+		(assignment) =>
+			assignment.task_id === taskId && assignment.status === "active",
+	);
+}
+
+function requireClaim(
+	assignment: Assignment | undefined,
+	taskId: string,
+	claimId: string | undefined,
+): void {
+	if (!claimId) return;
+	if (!assignment || assignment.claim_id !== claimId)
+		die(`Claim '${claimId}' is not the active claim for '${taskId}'`);
+}
+
+function leaseFromNow(value: string | undefined): {
+	minutes: number;
+	until: string;
+} {
+	const minutes = value ? Number(value) : NaN;
+	if (!Number.isInteger(minutes) || minutes <= 0)
+		die("Usage: task renew <task-id> --claim <claim-id> --lease <minutes>");
+	return {
+		minutes,
+		until: new Date(Date.now() + minutes * 60_000).toISOString(),
+	};
+}
+
+// ── task renew ───────────────────────────────────────────────────────────────
+
+export async function cmdRenew(args: string[]) {
+	const taskId = args[0];
+	const flags = parseFlags(args.slice(1));
+	if (!taskId || !flags.claim)
+		die("Usage: task renew <task-id> --claim <claim-id> --lease <minutes>");
+	const lease = leaseFromNow(flags.lease);
+	const assignments = readAssignments();
+	const idx = activeAssignmentIndex(assignments, taskId);
+	const assignment = idx === -1 ? undefined : assignments[idx];
+	requireClaim(assignment, taskId, flags.claim);
+	if (assignment?.owner_type !== "agent")
+		die(`Claim '${flags.claim}' is not the active claim for '${taskId}'`);
+
+	await commitWithRollback(`renew(${taskId})`, [ASSIGNMENTS_PATH], async () => {
+		assignments[idx].lease_until = lease.until;
+		writeAssignments(assignments);
+		await gitAdd([ASSIGNMENTS_PATH]);
+	});
+	console.log(`Renewed '${taskId}' until ${lease.until}`);
+	return {
+		task_id: taskId,
+		assignment: assignments[idx],
+		lease_minutes: lease.minutes,
+	};
 }
 
 // ── task triage ───────────────────────────────────────────────────────────────
@@ -506,13 +569,14 @@ export async function cmdTriage(args: string[]) {
 
 export async function cmdRelease(args: string[]) {
 	const taskId = args[0];
-	if (!taskId) die("Usage: task release <task-id> [--reason <note>]");
+	if (!taskId)
+		die("Usage: task release <task-id> [--reason <note>] [--claim <claim-id>]");
+	const flags = parseFlags(args.slice(1));
 
 	const assignments = readAssignments();
-	const idx = assignments.findIndex(
-		(a) => a.task_id === taskId && a.status === "active",
-	);
+	const idx = activeAssignmentIndex(assignments, taskId);
 	if (idx === -1) die(`No active assignment for '${taskId}'`);
+	requireClaim(assignments[idx], taskId, flags.claim);
 
 	const issuePath = findIssueFile(taskId);
 	const changedFiles: string[] = [ASSIGNMENTS_PATH];
@@ -994,14 +1058,13 @@ export async function cmdClose(args: string[]) {
 	data.closed_at = today();
 
 	const doneDir = join(ROOT, "issues", scope, "done");
-	if (!existsSync(doneDir)) mkdirSync(doneDir, { recursive: true });
-
 	const newPath = join(doneDir, `${today()}-${taskId}.md`);
 	const assignments = readAssignments();
 	const idx = assignments.findIndex(
 		(a) => a.task_id === taskId && a.status === "active",
 	);
 	const assignment = idx === -1 ? undefined : assignments[idx];
+	requireClaim(assignment, taskId, flags.claim);
 	const config = effectiveConfig();
 	const force = "force" in flags;
 	const reason = flags.reason?.trim();
@@ -1072,6 +1135,7 @@ export async function cmdClose(args: string[]) {
 		`close(${taskId})`,
 		[issuePath, newPath, FLOW_PATH, ASSIGNMENTS_PATH],
 		async () => {
+			if (!existsSync(doneDir)) mkdirSync(doneDir, { recursive: true });
 			let updatedBody = body;
 			for (const commit of JSON.parse(flags.__evidence ?? "[]") as {
 				hash: string;
@@ -1149,6 +1213,10 @@ export async function cmdDoctor() {
 					const issuePath = findIssueFile(assignment.task_id);
 					if (!issuePath) continue;
 					const { data, body } = readIssue(issuePath);
+					data.status = "ready-for-agent";
+					data.owner = "human";
+					data.owner_type = "human";
+					data.agent_id = null;
 					const expiredAt = now.toISOString();
 					writeIssue(
 						issuePath,

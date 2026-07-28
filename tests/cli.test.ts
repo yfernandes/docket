@@ -777,6 +777,123 @@ describe("notes and lifecycle history", () => {
 	});
 });
 
+describe("agent claim identity and renewal", () => {
+	for (const entrypoint of ["source", "bundled"] as const) {
+		test(`${entrypoint} issues claim IDs, renews from now, and keeps human commands compatible`, () => {
+			withFixture((fixture) => {
+				const claim = run(fixture, entrypoint, [
+					"claim",
+					"legacy-task",
+					"--agent",
+					"codex",
+					"--lease",
+					"1",
+					"--json",
+				]);
+				expect(claim.exitCode).toBe(0);
+				const claimId = (
+					jsonResult(claim).data.assignment as Record<string, unknown>
+				).claim_id;
+				expect(claimId).toEqual(expect.any(String));
+
+				const renewStartedAt = Date.now();
+				const renewed = run(fixture, entrypoint, [
+					"renew",
+					"legacy-task",
+					"--claim",
+					String(claimId),
+					"--lease",
+					"60",
+					"--json",
+				]);
+				expect(renewed.exitCode).toBe(0);
+				const renewedAssignment = jsonResult(renewed).data.assignment as Record<
+					string,
+					unknown
+				>;
+				expect(
+					Date.parse(String(renewedAssignment.lease_until)),
+				).toBeGreaterThan(renewStartedAt + 59 * 60_000);
+
+				// JSON is a serialization choice, not an ownership requirement.
+				const unguardedRelease = run(fixture, entrypoint, [
+					"release",
+					"legacy-task",
+					"--json",
+				]);
+				expect(unguardedRelease.exitCode).toBe(0);
+			});
+		});
+
+		test(`${entrypoint} rejects stale claim IDs after expiry and replacement`, () => {
+			withFixture((fixture) => {
+				const first = run(fixture, entrypoint, [
+					"claim",
+					"legacy-task",
+					"--agent",
+					"codex-old",
+					"--lease",
+					"60",
+					"--json",
+				]);
+				const oldClaim = String(
+					(jsonResult(first).data.assignment as Record<string, unknown>)
+						.claim_id,
+				);
+				const assignmentsPath = join(fixture, "assignments.yaml");
+				writeFileSync(
+					assignmentsPath,
+					readFileSync(assignmentsPath, "utf-8").replace(
+						new RegExp(
+							`(claim_id: ${oldClaim}\\n  claimed_at: .*\\n  )lease_until: .*`,
+						),
+						"$1lease_until: 2020-01-01T00:00:00.000Z",
+					),
+				);
+				expect(run(fixture, entrypoint, ["doctor"]).exitCode).toBe(0);
+				expect(
+					readFileSync(
+						join(fixture, "issues", "automation", "legacy-task.md"),
+						"utf-8",
+					),
+				).toContain("status: ready-for-agent");
+
+				const replacement = run(fixture, entrypoint, [
+					"claim",
+					"legacy-task",
+					"--agent",
+					"codex-new",
+					"--lease",
+					"60",
+					"--json",
+				]);
+				expect(replacement.exitCode).toBe(0);
+				const replacementClaim = String(
+					(jsonResult(replacement).data.assignment as Record<string, unknown>)
+						.claim_id,
+				);
+				expect(replacementClaim).not.toBe(oldClaim);
+
+				for (const args of [
+					["renew", "legacy-task", "--claim", oldClaim, "--lease", "60"],
+					["release", "legacy-task", "--claim", oldClaim],
+					["close", "legacy-task", "--claim", oldClaim],
+				]) {
+					const result = run(fixture, entrypoint, args);
+					expect(result.exitCode).toBe(1);
+					expect(result.stderr).toContain("is not the active claim");
+				}
+				expect(readFileSync(assignmentsPath, "utf-8")).toContain(
+					`claim_id: ${replacementClaim}`,
+				);
+				expect(existsSync(join(fixture, "issues", "automation", "done"))).toBe(
+					false,
+				);
+			});
+		});
+	}
+});
+
 describe("implementation commit capture", () => {
 	for (const entrypoint of ["source", "bundled"] as const) {
 		test(`${entrypoint} captures claim bases, detects ranges, and retains full hashes in JSON`, () => {
