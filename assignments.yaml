@@ -48,3 +48,13 @@
   claimed_at: 2026-07-28T00:18:01.616Z
   lease_until: 2026-07-28T04:18:01.616Z
   released_at: null
+- task_id: aa-05-record-notes-and-lifecycle-history
+  status: active
+  owner: codex
+  owner_type: agent
+  agent_id: codex
+  worktree: null
+  branch: null
+  claimed_at: 2026-07-28T00:36:06.450Z
+  lease_until: 2026-07-28T04:36:06.450Z
+  released_at: null

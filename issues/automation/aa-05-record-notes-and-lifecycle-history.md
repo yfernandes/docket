@@ -1,11 +1,11 @@
 ---
 id: aa-05-record-notes-and-lifecycle-history
 title: AA-05 Record notes and lifecycle history
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex
+owner_type: agent
+agent_id: codex
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -46,3 +46,18 @@ Do not implement cross-task note scouting, note-to-task promotion, or commit-ran
 
 - `docs/agent-automation-plan.md#note`
 - `docs/agent-automation-plan.md#aa-05--notes-and-lifecycle-history`
+
+## Task Log
+
+<!-- docket:task-log:start -->
+
+### Commits
+
+### Implementation Notes
+
+### History
+
+- 2026-07-28T00:36:06.450Z — codex claimed task
+<!-- docket:event id=claim-2026-07-28T00:36:06.450Z -->
+
+<!-- docket:task-log:end -->
