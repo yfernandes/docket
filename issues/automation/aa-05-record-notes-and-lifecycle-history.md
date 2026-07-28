@@ -1,11 +1,11 @@
 ---
 id: aa-05-record-notes-and-lifecycle-history
 title: AA-05 Record notes and lifecycle history
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: codex
+owner: codex-reconcile
 owner_type: agent
-agent_id: codex
+agent_id: codex-reconcile
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -65,5 +65,8 @@ Do not implement cross-task note scouting, note-to-task promotion, or commit-ran
 
 - 2026-07-28T07:08:58.689Z — task triaged in-progress -> ready-for-agent
 <!-- docket:event id=triage-2026-07-28T07:08:58.689Z -->
+
+- 2026-07-28T07:08:58.739Z — codex-reconcile claimed task
+<!-- docket:event id=claim-2026-07-28T07:08:58.739Z -->
 
 <!-- docket:task-log:end -->
