@@ -22,16 +22,16 @@ Ship an `adversarial-review` fixture representing one implementer, two reviewers
 
 ## Acceptance Criteria
 
-- [ ] JSON fixtures load and validate without runtime dependencies.
-- [ ] Role names and positive slot counts receive actionable validation.
-- [ ] Stable slot IDs are calculated deterministically.
-- [ ] `slots` reports free, active, completed, and expired state.
-- [ ] One implementer, two reviewers, and one fixer can be represented.
-- [ ] A third simultaneous reviewer is rejected.
-- [ ] Claim and take enforce fixture role capacity.
-- [ ] Tasks without fixtures retain primary-only compatibility.
-- [ ] Installer and updater distribute bundled fixtures without overwriting user-created fixtures.
-- [ ] Docket does not encode stage order, retries, prompts, or models.
+- [x] JSON fixtures load and validate without runtime dependencies.
+- [x] Role names and positive slot counts receive actionable validation.
+- [x] Stable slot IDs are calculated deterministically.
+- [x] `slots` reports free, active, completed, and expired state.
+- [x] One implementer, two reviewers, and one fixer can be represented.
+- [x] A third simultaneous reviewer is rejected.
+- [x] Claim and take enforce fixture role capacity.
+- [x] Tasks without fixtures retain primary-only compatibility.
+- [x] Installer and updater distribute bundled fixtures without overwriting user-created fixtures.
+- [x] Docket does not encode stage order, retries, prompts, or models.
 
 ## Blocked by
 
@@ -51,6 +51,9 @@ Do not build a workflow engine. Conditional implement/review/fix sequencing rema
 <!-- docket:task-log:start -->
 
 ### Commits
+
+- `74783e3c56f4` feat(aa-11): add crew fixtures and slot visibility
+<!-- docket:commit hash=74783e3c56f4c5142a4d8a217a520410bbd84f33 -->
 
 ### Implementation Notes
 
