@@ -12,6 +12,7 @@ import {
 	cmdNew,
 	cmdRelease,
 	cmdRender,
+	cmdShow,
 	cmdTriage,
 } from "./commands";
 import { domainError, runCommand, usageError } from "./protocol";
@@ -45,6 +46,8 @@ Commands:
     --scope <s>             Filter by scope
     --owner <s>             Filter by owner
     --tag <t>               Filter by tag
+    --json                  JSON output
+  show <task-id>            Show complete task context
     --json                  JSON output
   ingest                    Process Issue Scratchpad via AI
     --backend <name>        Force backend: gemini, claude, copilot, codex, api
@@ -82,6 +85,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 				return cmdRender();
 			case "list":
 				return cmdList(rest);
+			case "show":
+				return cmdShow(rest);
 			case "ingest":
 				return cmdIngest(rest);
 			case "help":

@@ -83,6 +83,79 @@ const LEGACY_ASSIGNMENTS = `- task_id: legacy-assigned
   released_at: null
 `;
 
+const TASK_WITH_LOG = `---
+id: task-with-log
+title: Task with complete context
+status: in-progress
+priority: P1
+owner: codex
+owner_type: agent
+agent_id: codex
+tags: [automation, context]
+created_at: 2025-01-03
+closed_at: null
+---
+
+## Context
+
+Keep this authored body exactly.
+
+## Task Log
+
+<!-- docket:task-log:start -->
+
+### Commits
+
+- \`bbb222\` Second commit in file
+- \`aaa111\` First hash alphabetically
+
+### Implementation Notes
+
+#### 2025-01-03 10:30 UTC — decision — codex
+
+<!-- docket:note id=note-second kind=decision -->
+
+Keep the parser output in file order.
+
+#### 2025-01-03 10:00 UTC — blocker — codex
+
+<!-- docket:note id=note-first kind=blocker -->
+
+This identifier sorts before the previous note.
+
+### History
+
+- 2025-01-03T11:00:00.000Z — second event
+<!-- docket:event id=event-second -->
+
+- 2025-01-03T09:00:00.000Z — first event
+<!-- docket:event id=event-first -->
+
+<!-- docket:task-log:end -->
+`;
+
+const TASK_WITH_LOG_ASSIGNMENTS = `- task_id: task-with-log
+  status: released
+  owner: first-owner
+  owner_type: human
+  agent_id: null
+  worktree: null
+  branch: null
+  claimed_at: 2025-01-03T08:00:00.000Z
+  lease_until: null
+  released_at: 2025-01-03T08:30:00.000Z
+- task_id: task-with-log
+  status: active
+  owner: codex
+  owner_type: agent
+  agent_id: codex
+  worktree: /tmp/task-with-log
+  branch: task-with-log
+  claimed_at: 2025-01-03T09:00:00.000Z
+  lease_until: 2025-01-03T12:00:00.000Z
+  released_at: null
+`;
+
 const ISSUE_TEMPLATE = `---
 id: replace-me
 title: Replace me
@@ -764,4 +837,174 @@ fi
 			).toBe(true);
 		});
 	});
+});
+
+describe("show complete task context", () => {
+	for (const entrypoint of ["source", "bundled"] as const) {
+		test(`${entrypoint} shows active task context in human and JSON formats without mutation`, () => {
+			withFixture((fixture) => {
+				const issuePath = join(
+					fixture,
+					"issues",
+					"automation",
+					"task-with-log.md",
+				);
+				const assignmentsPath = join(fixture, "assignments.yaml");
+				const flowPath = join(fixture, "flow.md");
+				writeFileSync(issuePath, TASK_WITH_LOG);
+				writeFileSync(assignmentsPath, TASK_WITH_LOG_ASSIGNMENTS);
+				const before = [issuePath, assignmentsPath, flowPath].map((path) =>
+					readFileSync(path, "utf-8"),
+				);
+
+				const human = run(fixture, entrypoint, ["show", "task-with-log"]);
+				expect(human.exitCode).toBe(0);
+				expect(human.stdout).toContain(
+					"Task with complete context (task-with-log)",
+				);
+				expect(human.stdout).toContain(
+					"Active assignment: codex (agent), claimed 2025-01-03T09:00:00.000Z",
+				);
+				expect(human.stdout).toContain("Assignment history: 2 record(s)");
+				expect(human.stdout).toContain("Keep this authored body exactly.");
+				expect(human.stdout).toContain("bbb222 Second commit in file");
+				expect(human.stdout).toContain(
+					"- 2025-01-03T11:00:00.000Z — second event",
+				);
+
+				const json = run(fixture, entrypoint, [
+					"show",
+					"task-with-log",
+					"--json",
+				]);
+				expect(json.exitCode).toBe(0);
+				const output = jsonResult(json);
+				expect(output.command).toBe("show");
+				expect(Object.keys(output.data)).toEqual([
+					"frontmatter",
+					"body",
+					"task_log",
+					"task_log_errors",
+					"path",
+					"scope",
+					"primary_assignment",
+					"has_active_assignment",
+					"assignment_history",
+				]);
+				expect(output.data.body).toBe(
+					"\n## Context\n\nKeep this authored body exactly.",
+				);
+				expect(output.data.path).toBe("issues/automation/task-with-log.md");
+				expect(output.data.scope).toBe("automation");
+				expect(output.data.has_active_assignment).toBe(true);
+				expect(output.data.task_log_errors).toEqual([]);
+				const taskLog = output.data.task_log as {
+					commits: { hash: string }[];
+					notes: { id: string }[];
+					history: { id: string; text: string }[];
+				};
+				expect(taskLog.commits.map(({ hash }) => hash)).toEqual([
+					"bbb222",
+					"aaa111",
+				]);
+				expect(taskLog.notes.map(({ id }) => id)).toEqual([
+					"note-second",
+					"note-first",
+				]);
+				expect(taskLog.history.map(({ id }) => id)).toEqual([
+					"event-second",
+					"event-first",
+				]);
+				expect(
+					(output.data.assignment_history as { owner: string }[]).map(
+						({ owner }) => owner,
+					),
+				).toEqual(["first-owner", "codex"]);
+				expect(
+					(output.data.primary_assignment as { owner: string }).owner,
+				).toBe("codex");
+
+				expect(
+					[issuePath, assignmentsPath, flowPath].map((path) =>
+						readFileSync(path, "utf-8"),
+					),
+				).toEqual(before);
+			});
+		});
+
+		test(`${entrypoint} finds archived tasks and distinguishes inactive assignment history`, () => {
+			withFixture((fixture) => {
+				const archiveDir = join(fixture, "issues", "automation", "done");
+				mkdirSync(archiveDir, { recursive: true });
+				writeFileSync(
+					join(archiveDir, "2025-01-04-archived-context.md"),
+					LEGACY_TASK.replace("legacy-task", "archived-context")
+						.replace("Legacy task", "Archived context")
+						.replace("status: open", "status: done")
+						.replace("closed_at: null", "closed_at: 2025-01-04"),
+				);
+				writeFileSync(
+					join(fixture, "assignments.yaml"),
+					TASK_WITH_LOG_ASSIGNMENTS.replaceAll(
+						"task-with-log",
+						"archived-context",
+					)
+						.replace("status: active", "status: expired")
+						.replace(
+							"released_at: null",
+							"released_at: 2025-01-04T00:00:00.000Z",
+						),
+				);
+
+				const result = run(fixture, entrypoint, [
+					"show",
+					"archived-context",
+					"--json",
+				]);
+				expect(result.exitCode).toBe(0);
+				const output = jsonResult(result);
+				expect(output.data.path).toBe(
+					"issues/automation/done/2025-01-04-archived-context.md",
+				);
+				expect(output.data.primary_assignment).toBeNull();
+				expect(output.data.has_active_assignment).toBe(false);
+				expect(output.data.assignment_history).toBeArrayOfSize(2);
+			});
+		});
+
+		test(`${entrypoint} returns stable structured errors for missing and ambiguous task ids`, () => {
+			withFixture((fixture) => {
+				const missing = run(fixture, entrypoint, [
+					"show",
+					"does-not-exist",
+					"--json",
+				]);
+				expect(missing.exitCode).toBe(1);
+				const missingOutput = jsonResult(missing);
+				expect(missingOutput.error.code).toBe("TASK_NOT_FOUND");
+				expect(missingOutput.error.details).toEqual({
+					task_id: "does-not-exist",
+				});
+
+				const doneDir = join(fixture, "issues", "automation", "done");
+				mkdirSync(doneDir, { recursive: true });
+				writeFileSync(join(doneDir, "2025-01-04-legacy-task.md"), LEGACY_TASK);
+				const ambiguous = run(fixture, entrypoint, [
+					"show",
+					"legacy-task",
+					"--json",
+				]);
+				expect(ambiguous.exitCode).toBe(1);
+				const ambiguousOutput = jsonResult(ambiguous);
+				expect(ambiguousOutput.error.code).toBe("AMBIGUOUS_TASK_ID");
+				expect(ambiguousOutput.error.details).toEqual({
+					task_id: "legacy-task",
+					paths: [
+						"issues/automation/done/2025-01-04-legacy-task.md",
+						"issues/automation/legacy-task.md",
+					],
+				});
+			});
+		});
+	}
 });

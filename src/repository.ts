@@ -116,11 +116,20 @@ export function walkIssues(): string[] {
 
 export function findIssueFile(taskId: string): string | null {
 	return (
-		walkIssues().find((p) => {
-			const slug = basename(p, ".md").replace(/^\d{4}-\d{2}-\d{2}-/, "");
+		walkIssues().find((path) => {
+			const slug = basename(path, ".md").replace(/^\d{4}-\d{2}-\d{2}-/, "");
 			return slug === taskId;
 		}) ?? null
 	);
+}
+
+export function findIssueFiles(taskId: string): string[] {
+	return walkIssues()
+		.filter((p) => {
+			const slug = basename(p, ".md").replace(/^\d{4}-\d{2}-\d{2}-/, "");
+			return slug === taskId;
+		})
+		.sort((left, right) => relPath(left).localeCompare(relPath(right)));
 }
 
 export function readIssue(filePath: string): {

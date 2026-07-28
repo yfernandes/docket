@@ -22,6 +22,7 @@ export interface TaskLog {
 export interface ParsedTaskLog {
 	log: TaskLog | null;
 	errors: string[];
+	authoredBody: string;
 }
 
 const START = "<!-- docket:task-log:start -->";
@@ -73,7 +74,8 @@ function insertInSection(
 export function parseTaskLog(body: string): ParsedTaskLog {
 	const starts = markerCount(body, START);
 	const ends = markerCount(body, END);
-	if (starts === 0 && ends === 0) return { log: null, errors: [] };
+	if (starts === 0 && ends === 0)
+		return { log: null, errors: [], authoredBody: body };
 
 	const errors: string[] = [];
 	if (starts !== 1 || ends !== 1)
@@ -82,8 +84,14 @@ export function parseTaskLog(body: string): ParsedTaskLog {
 	const end = body.indexOf(END);
 	if (start === -1 || end === -1 || end < start) {
 		errors.push("Task Log markers are out of order");
-		return { log: null, errors };
+		return { log: null, errors, authoredBody: body };
 	}
+	const taskLogHeading = body
+		.slice(0, start)
+		.match(/(?:^|\n)## Task Log\s*\n\s*$/);
+	const authoredBody = taskLogHeading
+		? body.slice(0, taskLogHeading.index).trimEnd()
+		: body.slice(0, start).trimEnd();
 	if (!/^## Task Log\s*$/m.test(body.slice(0, start)))
 		errors.push("Task Log start marker is missing its '## Task Log' heading");
 	if (body.slice(end + END.length).trim())
@@ -118,7 +126,7 @@ export function parseTaskLog(body: string): ParsedTaskLog {
 		if (new Set(values).size !== values.length)
 			errors.push(`Duplicate Task Log ${label}`);
 	}
-	return { log: { commits, notes, history }, errors };
+	return { log: { commits, notes, history }, errors, authoredBody };
 }
 
 export function ensureTaskLog(body: string): string {

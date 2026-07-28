@@ -30,6 +30,7 @@ import {
 	extractSection,
 	FLOW_PATH,
 	findIssueFile,
+	findIssueFiles,
 	gitAdd,
 	gitAddUpdate,
 	gitCommit,
@@ -905,6 +906,81 @@ export async function cmdList(args: string[]) {
 	console.log(widths.map((w) => "-".repeat(w)).join("  "));
 	for (const row of rows) console.log(fmt(row));
 	return { issues: out };
+}
+
+// ── task show ────────────────────────────────────────────────────────────────
+
+export async function cmdShow(args: string[]) {
+	const taskId = args[0];
+	if (!taskId || args.length !== 1) die("Usage: task show <task-id>");
+
+	const matches = findIssueFiles(taskId);
+	if (matches.length === 0)
+		domainError(`Issue not found for '${taskId}'`, "TASK_NOT_FOUND", {
+			task_id: taskId,
+		});
+	if (matches.length > 1)
+		domainError(`Multiple issues found for '${taskId}'`, "AMBIGUOUS_TASK_ID", {
+			task_id: taskId,
+			paths: matches.map(relPath),
+		});
+
+	const issuePath = matches[0];
+	const { data: frontmatter, body } = readIssue(issuePath);
+	const parsed = parseTaskLog(body);
+	const assignmentHistory = readAssignments().filter(
+		(assignment) => assignment.task_id === taskId,
+	);
+	const primaryAssignment =
+		assignmentHistory.find((assignment) => assignment.status === "active") ??
+		null;
+	const taskLog = parsed.log ?? { commits: [], notes: [], history: [] };
+	const result = {
+		frontmatter,
+		body: parsed.authoredBody,
+		task_log: taskLog,
+		task_log_errors: parsed.errors,
+		path: relPath(issuePath),
+		scope: scopeFromPath(issuePath),
+		primary_assignment: primaryAssignment,
+		has_active_assignment: primaryAssignment !== null,
+		assignment_history: assignmentHistory,
+	};
+
+	console.log(`${frontmatter.title ?? frontmatter.id} (${frontmatter.id})`);
+	console.log(`Path: ${result.path}`);
+	console.log(`Scope: ${result.scope}`);
+	console.log(`Status: ${frontmatter.status}`);
+	console.log(`Priority: ${frontmatter.priority}`);
+	console.log(`Owner: ${frontmatter.owner ?? "unassigned"}`);
+	console.log(`Owner type: ${frontmatter.owner_type ?? "unassigned"}`);
+	console.log(`Agent: ${frontmatter.agent_id ?? "none"}`);
+	console.log(`Tags: ${frontmatter.tags.join(", ") || "none"}`);
+	console.log(`Created: ${frontmatter.created_at}`);
+	console.log(`Closed: ${frontmatter.closed_at ?? "not closed"}`);
+	console.log(
+		primaryAssignment
+			? `Active assignment: ${primaryAssignment.owner} (${primaryAssignment.owner_type}), claimed ${primaryAssignment.claimed_at}`
+			: "Active assignment: none",
+	);
+	console.log(`Assignment history: ${assignmentHistory.length} record(s)`);
+	for (const assignment of assignmentHistory)
+		console.log(
+			`  ${assignment.status}: ${assignment.owner} (${assignment.owner_type}), claimed ${assignment.claimed_at}${assignment.released_at ? `, released ${assignment.released_at}` : ""}`,
+		);
+	console.log("\nBody:");
+	console.log(parsed.authoredBody.trim() || "(empty)");
+	console.log("\nTask Log:");
+	console.log(`Commits: ${taskLog.commits.length}`);
+	for (const commit of taskLog.commits)
+		console.log(`  ${commit.hash} ${commit.subject}`.trimEnd());
+	console.log(`Implementation notes: ${taskLog.notes.length}`);
+	for (const note of taskLog.notes) console.log(`  ${note.id}`);
+	console.log(`History: ${taskLog.history.length}`);
+	for (const event of taskLog.history) console.log(`  ${event.text}`);
+	for (const error of parsed.errors) console.log(`Task Log warning: ${error}`);
+
+	return result;
 }
 
 // ── AI backends ───────────────────────────────────────────────────────────────
