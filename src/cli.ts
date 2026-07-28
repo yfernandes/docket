@@ -4,6 +4,7 @@
 import {
 	cmdClaim,
 	cmdClose,
+	cmdCommits,
 	cmdConfig,
 	cmdDoctor,
 	cmdIngest,
@@ -57,6 +58,10 @@ Commands:
     --run <run-id>          Optional run attribution
     --stdin                 Read note text from stdin
     --json                  JSON output
+  commits list <task-id>    List recorded implementation commits
+  commits add <task-id> <hash>...
+                            Record explicit implementation commits
+  commits detect <task-id>  Detect commits since an agent claim's base commit
   ingest                    Process Issue Scratchpad via AI
     --backend <name>        Force backend: gemini, claude, copilot, codex, api
                             (default: auto-detect from PATH, fallback to api)
@@ -97,6 +102,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 				return cmdShow(rest);
 			case "note":
 				return cmdNote(rest);
+			case "commits":
+				return cmdCommits(rest);
 			case "ingest":
 				return cmdIngest(rest);
 			case "help":

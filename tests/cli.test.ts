@@ -777,6 +777,134 @@ describe("notes and lifecycle history", () => {
 	});
 });
 
+describe("implementation commit capture", () => {
+	for (const entrypoint of ["source", "bundled"] as const) {
+		test(`${entrypoint} captures claim bases, detects ranges, and retains full hashes in JSON`, () => {
+			withFixture((fixture) => {
+				const taskId = "legacy-task";
+				const app = createApplicationFixture(taskId);
+				try {
+					expect(
+						run(fixture, entrypoint, [
+							"claim",
+							taskId,
+							"--agent",
+							"codex",
+							"--lease",
+							"120",
+							"--worktree",
+							app.directory,
+						]).exitCode,
+					).toBe(0);
+					writeFileSync(
+						join(app.directory, "implementation.txt"),
+						"detected\n",
+					);
+					const implementation = commitIn(
+						app.directory,
+						`implement ${taskId} capture`,
+					);
+					writeFileSync(join(app.directory, "implementation.txt"), "state\n");
+					const stateCommit = commitIn(
+						app.directory,
+						"claim(other-task): state",
+					);
+					const detect = run(fixture, entrypoint, [
+						"commits",
+						"detect",
+						taskId,
+						"--json",
+					]);
+					expect(detect.exitCode).toBe(0);
+					expect(jsonResult(detect).data.commits).toEqual([
+						{ hash: implementation, subject: `implement ${taskId} capture` },
+					]);
+					expect(jsonResult(detect).data.recorded).toEqual([
+						{ hash: implementation, subject: `implement ${taskId} capture` },
+					]);
+					expect(jsonResult(detect).data.commits).not.toContainEqual({
+						hash: stateCommit,
+						subject: "claim(other-task): state",
+					});
+
+					const list = run(fixture, entrypoint, [
+						"commits",
+						"list",
+						taskId,
+						"--json",
+					]);
+					expect(jsonResult(list).data.commits).toEqual([
+						{
+							hash: implementation,
+							subject: `implement ${taskId} capture`,
+							display_hash: implementation.slice(0, 12),
+						},
+					]);
+					const issue = readFileSync(
+						join(fixture, "issues", "automation", `${taskId}.md`),
+						"utf-8",
+					);
+					expect(issue).toContain(`\`${implementation.slice(0, 12)}\``);
+					expect(issue).toContain(`docket:commit hash=${implementation}`);
+					expect(
+						run(fixture, entrypoint, ["commits", "add", taskId, implementation])
+							.exitCode,
+					).toBe(0);
+					expect(
+						readFileSync(
+							join(fixture, "issues", "automation", `${taskId}.md`),
+							"utf-8",
+						).match(/docket:commit hash=/g),
+					).toHaveLength(1);
+				} finally {
+					rmSync(app.directory, { recursive: true, force: true });
+				}
+			});
+		});
+	}
+
+	test("detect warns instead of guessing after rewritten history", () => {
+		withFixture((fixture) => {
+			const taskId = "legacy-task";
+			const app = createApplicationFixture(taskId);
+			try {
+				expect(
+					run(fixture, "source", [
+						"claim",
+						taskId,
+						"--agent",
+						"codex",
+						"--lease",
+						"120",
+						"--worktree",
+						app.directory,
+					]).exitCode,
+				).toBe(0);
+				const assignments = join(fixture, "assignments.yaml");
+				writeFileSync(
+					assignments,
+					readFileSync(assignments, "utf-8").replace(
+						/base_commit: .*/,
+						"base_commit: 0000000000000000000000000000000000000000",
+					),
+				);
+				const result = run(fixture, "source", [
+					"commits",
+					"detect",
+					taskId,
+					"--json",
+				]);
+				expect(result.exitCode).toBe(0);
+				expect(jsonResult(result).warnings.join(" ")).toContain(
+					"history may have been rewritten",
+				);
+			} finally {
+				rmSync(app.directory, { recursive: true, force: true });
+			}
+		});
+	});
+});
+
 describe("versioned JSON command protocol", () => {
 	for (const entrypoint of ["source", "bundled"] as const) {
 		test(`${entrypoint} emits success envelopes for every read-only command`, () => {

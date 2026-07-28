@@ -1,6 +1,7 @@
 export interface TaskLogCommit {
 	hash: string;
 	subject: string;
+	display_hash?: string;
 }
 
 export interface TaskLogNote {
@@ -42,6 +43,7 @@ const NOTE_MARKERS = [
 	END,
 	"<!-- docket:note ",
 	"<!-- docket:event ",
+	"<!-- docket:commit ",
 ] as const;
 const EMPTY_LOG = `## Task Log
 
@@ -125,8 +127,24 @@ export function parseTaskLog(body: string): ParsedTaskLog {
 
 	const content = body.slice(start + START.length, end);
 	const commits: TaskLogCommit[] = [];
-	for (const match of content.matchAll(/^\s*-\s+`([^`]+)`\s*(.*)$/gm)) {
-		commits.push({ hash: match[1], subject: match[2].trim() });
+	const commitsContent = content.slice(
+		content.indexOf("### Commits") + "### Commits".length,
+		sectionEnd(content, "### Commits") ?? content.length,
+	);
+	const commitLines = commitsContent.split("\n");
+	for (let index = 0; index < commitLines.length; index++) {
+		const match = commitLines[index].match(/^\s*-\s+`([^`]+)`\s*(.*)$/);
+		if (!match) continue;
+		const displayHash = match[1];
+		const metadata = commitLines[index + 1]?.match(
+			/^<!--\s*docket:commit\s+hash=([^\s>]+)\s*-->$/,
+		);
+		if (metadata) index++;
+		commits.push({
+			hash: metadata?.[1] ?? displayHash,
+			subject: match[2].trim(),
+			...(metadata ? { display_hash: displayHash } : {}),
+		});
 	}
 	const notes: TaskLogNote[] = [];
 	const history: TaskLogHistoryEvent[] = [];
@@ -209,9 +227,19 @@ export function noteTextContainsTaskLogMarker(text: string): boolean {
 export function appendCommit(body: string, commit: TaskLogCommit): string {
 	const parsed = parseTaskLog(body);
 	if (parsed.errors.length > 0) throw new Error(parsed.errors.join("; "));
-	if (parsed.log?.commits.some((existing) => existing.hash === commit.hash))
+	if (
+		parsed.log?.commits.some(
+			(existing) =>
+				existing.hash === commit.hash || commit.hash.startsWith(existing.hash),
+		)
+	)
 		return body;
 	const withLog = ensureTaskLog(body);
 	const end = withLog.indexOf(END);
-	return `${insertInSection(withLog.slice(0, end), "### Commits", `- \`${commit.hash}\` ${commit.subject}`).trimEnd()}\n\n${withLog.slice(end)}`;
+	const displayHash = commit.display_hash ?? commit.hash.slice(0, 12);
+	const metadata =
+		displayHash === commit.hash
+			? ""
+			: `\n<!-- docket:commit hash=${commit.hash} -->`;
+	return `${insertInSection(withLog.slice(0, end), "### Commits", `- \`${displayHash}\` ${commit.subject}${metadata}`).trimEnd()}\n\n${withLog.slice(end)}`;
 }

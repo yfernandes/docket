@@ -3,6 +3,7 @@ import {
 	mkdirSync,
 	readdirSync,
 	readFileSync,
+	realpathSync,
 	renameSync,
 	statSync,
 	writeFileSync,
@@ -383,6 +384,10 @@ export async function cmdClaim(args: string[]) {
 		? new Date(Date.now() + leaseMinutes * 60_000).toISOString()
 		: null;
 
+	const baseCommit =
+		ownerType === "agent" && worktree
+			? await captureBaseCommit(worktree)
+			: null;
 	const record: Assignment = {
 		task_id: taskId,
 		status: "active",
@@ -391,6 +396,7 @@ export async function cmdClaim(args: string[]) {
 		agent_id: agentId,
 		worktree,
 		branch,
+		base_commit: baseCommit,
 		claimed_at: new Date().toISOString(),
 		lease_until: leaseUntil,
 		released_at: null,
@@ -651,6 +657,242 @@ export async function cmdNote(args: string[]) {
 	);
 	console.log(`Added ${parsed.kind} note to '${parsed.taskId}'`);
 	return { task_id: parsed.taskId, note };
+}
+
+// ── task commits ─────────────────────────────────────────────────────────────
+
+interface GitResult {
+	exitCode: number;
+	stdout: string;
+	stderr: string;
+}
+
+async function gitIn(worktree: string, args: string[]): Promise<GitResult> {
+	const process = Bun.spawn(["git", "-C", worktree, ...args], {
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	const [exitCode, stdout, stderr] = await Promise.all([
+		process.exited,
+		new Response(process.stdout).text(),
+		new Response(process.stderr).text(),
+	]);
+	return { exitCode, stdout: stdout.trim(), stderr: stderr.trim() };
+}
+
+function isDocketStateCommit(subject: string): boolean {
+	return /^(claim|triage|close|release|note|new|render|doctor)\(/.test(subject);
+}
+
+async function applicationWorktree(
+	assignment: Assignment | undefined,
+): Promise<{ worktree: string } | { warning: string }> {
+	if (!assignment?.worktree)
+		return {
+			warning:
+				"No application worktree was recorded for this active claim. Re-claim with --worktree <application-repository> or use commits add after recording the hash.",
+		};
+	if (!existsSync(assignment.worktree))
+		return {
+			warning: `Recorded application worktree '${assignment.worktree}' no longer exists. Use commits add with an explicit hash after restoring the repository.`,
+		};
+	let worktree: string;
+	try {
+		worktree = realpathSync(assignment.worktree);
+	} catch {
+		return {
+			warning: `Recorded application worktree '${assignment.worktree}' cannot be resolved. Use commits add with an explicit hash after restoring the repository.`,
+		};
+	}
+	if (worktree === realpathSync(ROOT))
+		return {
+			warning:
+				"Recorded worktree is Docket's task worktree. Docket state commits are never implementation commits; use a separate application worktree.",
+		};
+	const probe = await gitIn(worktree, ["rev-parse", "--is-inside-work-tree"]);
+	if (probe.exitCode !== 0 || probe.stdout !== "true")
+		return {
+			warning: `Recorded application worktree '${assignment.worktree}' is not a Git worktree. Use commits add with an explicit hash after correcting the claim.`,
+		};
+	return { worktree };
+}
+
+async function captureBaseCommit(worktree: string): Promise<string | null> {
+	const candidate = await applicationWorktree({
+		task_id: "",
+		status: "active",
+		owner: "",
+		owner_type: "agent",
+		agent_id: null,
+		worktree,
+		branch: null,
+		claimed_at: "",
+		lease_until: null,
+		released_at: null,
+	});
+	if ("warning" in candidate) {
+		console.warn(`Base commit was not captured: ${candidate.warning}`);
+		return null;
+	}
+	const head = await gitIn(candidate.worktree, ["rev-parse", "HEAD"]);
+	if (head.exitCode !== 0) {
+		console.warn(
+			`Base commit was not captured: '${worktree}' has no readable HEAD. commits detect will require commits add.`,
+		);
+		return null;
+	}
+	return head.stdout;
+}
+
+async function resolveImplementationCommit(
+	worktree: string,
+	value: string,
+): Promise<{ hash: string; subject: string }> {
+	const resolved = await gitIn(worktree, ["rev-parse", `${value}^{commit}`]);
+	if (resolved.exitCode !== 0 || !resolved.stdout)
+		throw new Error(`Commit '${value}' is not a commit in ${worktree}.`);
+	const subject = await gitIn(worktree, [
+		"show",
+		"-s",
+		"--format=%s",
+		resolved.stdout,
+	]);
+	if (subject.exitCode !== 0)
+		throw new Error(
+			`Unable to read commit '${resolved.stdout}' in ${worktree}.`,
+		);
+	if (isDocketStateCommit(subject.stdout))
+		throw new Error(
+			`Commit '${resolved.stdout}' is Docket state evidence, not an implementation commit.`,
+		);
+	return { hash: resolved.stdout, subject: subject.stdout };
+}
+
+async function recordCommits(
+	taskId: string,
+	issuePath: string,
+	commits: { hash: string; subject: string }[],
+): Promise<{ hash: string; subject: string }[]> {
+	const { body } = readIssue(issuePath);
+	const existing = parseTaskLog(body).log?.commits ?? [];
+	const additions = commits.filter(
+		(commit) =>
+			!existing.some(
+				(recorded) =>
+					recorded.hash === commit.hash ||
+					commit.hash.startsWith(recorded.hash),
+			),
+	);
+	if (additions.length === 0) return [];
+	await commitWithRollback(`commits(${taskId})`, [issuePath], async () => {
+		const { data, body: currentBody } = readIssue(issuePath);
+		let updatedBody = currentBody;
+		for (const commit of additions)
+			updatedBody = appendCommit(updatedBody, commit);
+		writeIssue(issuePath, data, updatedBody);
+		await gitAdd([issuePath]);
+	});
+	return additions;
+}
+
+export async function cmdCommits(args: string[]) {
+	const [subcommand, taskId, ...values] = args;
+	if (!subcommand || !taskId)
+		die("Usage: task commits <list|add|detect> <task-id> [hash ...]");
+	const issuePath = findIssueFile(taskId);
+	if (!issuePath) die(`Issue not found for '${taskId}'`);
+	const { body } = readIssue(issuePath);
+
+	if (subcommand === "list") {
+		if (values.length > 0) die("Usage: task commits list <task-id>");
+		const commits = parseTaskLog(body).log?.commits ?? [];
+		console.log(`Implementation commits for '${taskId}':`);
+		for (const commit of commits)
+			console.log(
+				`${commit.display_hash ?? commit.hash.slice(0, 12)} ${commit.subject}`,
+			);
+		return { task_id: taskId, commits };
+	}
+
+	const assignment = readAssignments().find(
+		(record) => record.task_id === taskId && record.status === "active",
+	);
+	const candidate = await applicationWorktree(assignment);
+	if ("warning" in candidate) {
+		console.warn(candidate.warning);
+		return { task_id: taskId, commits: [], recorded: [], detected: false };
+	}
+
+	if (subcommand === "add") {
+		const hashes: string[] = [];
+		for (let index = 0; index < values.length; index++) {
+			if (values[index] === "--claim") {
+				if (!values[index + 1])
+					die(
+						"Usage: task commits add <task-id> <hash>... [--claim <claim-id>]",
+					);
+				index++;
+				continue;
+			}
+			hashes.push(values[index]);
+		}
+		if (hashes.length === 0) die("Usage: task commits add <task-id> <hash>...");
+		const commits = [] as { hash: string; subject: string }[];
+		for (const hash of hashes)
+			commits.push(await resolveImplementationCommit(candidate.worktree, hash));
+		const recorded = await recordCommits(taskId, issuePath, commits);
+		console.log(
+			`Recorded ${recorded.length} implementation commit(s) for '${taskId}'`,
+		);
+		return { task_id: taskId, commits, recorded };
+	}
+
+	if (
+		subcommand !== "detect" ||
+		(values.length > 0 &&
+			!(values.length === 2 && values[0] === "--claim" && values[1]))
+	)
+		die("Usage: task commits detect <task-id> [--claim <claim-id>]");
+	if (!assignment?.base_commit) {
+		console.warn(
+			"No base commit was captured for this claim. Automatic detection is skipped; use commits add <task-id> <hash> instead.",
+		);
+		return { task_id: taskId, commits: [], recorded: [], detected: false };
+	}
+	const reachable = await gitIn(candidate.worktree, [
+		"merge-base",
+		"--is-ancestor",
+		assignment.base_commit,
+		"HEAD",
+	]);
+	if (reachable.exitCode !== 0) {
+		console.warn(
+			`Base commit '${assignment.base_commit}' is no longer reachable from HEAD; history may have been rewritten. Automatic detection is skipped; use commits add <task-id> <hash> instead.`,
+		);
+		return { task_id: taskId, commits: [], recorded: [], detected: false };
+	}
+	const range = await gitIn(candidate.worktree, [
+		"log",
+		"--format=%H%x00%s",
+		`${assignment.base_commit}..HEAD`,
+	]);
+	if (range.exitCode !== 0)
+		throw new Error(
+			`Unable to inspect ${assignment.base_commit}..HEAD in ${candidate.worktree}.`,
+		);
+	const commits = range.stdout
+		.split("\n")
+		.filter(Boolean)
+		.map((line) => {
+			const [hash, subject] = line.split("\0", 2);
+			return { hash, subject };
+		})
+		.filter((commit) => !isDocketStateCommit(commit.subject));
+	const recorded = await recordCommits(taskId, issuePath, commits);
+	console.log(
+		`Detected ${commits.length} implementation commit(s); recorded ${recorded.length}.`,
+	);
+	return { task_id: taskId, commits, recorded, detected: true };
 }
 
 // ── task close ────────────────────────────────────────────────────────────────

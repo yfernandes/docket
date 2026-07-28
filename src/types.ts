@@ -31,6 +31,7 @@ export interface Assignment {
 	agent_id: string | null;
 	worktree: string | null;
 	branch: string | null;
+	base_commit?: string | null;
 	claimed_at: string;
 	lease_until: string | null;
 	released_at: string | null;

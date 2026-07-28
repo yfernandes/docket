@@ -51,6 +51,7 @@ export function toAssignment(r: Record<string, string | null>): Assignment {
 		agent_id: r.agent_id ?? null,
 		worktree: r.worktree ?? null,
 		branch: r.branch ?? null,
+		base_commit: r.base_commit ?? null,
 		claimed_at: r.claimed_at ?? new Date().toISOString(),
 		lease_until: r.lease_until ?? null,
 		released_at: r.released_at ?? null,
@@ -76,9 +77,14 @@ export function serializeAssignments(records: Assignment[]): string {
 	return `${records
 		.map((r) => {
 			const [first, ...rest] = ASSIGNMENT_KEYS;
+			const keys = [
+				...rest.slice(0, rest.indexOf("claimed_at")),
+				...(r.base_commit ? (["base_commit"] as const) : []),
+				...rest.slice(rest.indexOf("claimed_at")),
+			];
 			return (
 				`- ${first}: ${v(r[first])}\n` +
-				rest.map((k) => `  ${k}: ${v(r[k])}`).join("\n")
+				keys.map((k) => `  ${k}: ${v(r[k])}`).join("\n")
 			);
 		})
 		.join("\n")}\n`;

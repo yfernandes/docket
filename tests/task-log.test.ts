@@ -37,6 +37,19 @@ describe("Task Log", () => {
 		]);
 	});
 
+	test("does not duplicate a legacy abbreviated hash when recording its full hash", () => {
+		const abbreviated = appendCommit("Context\n", {
+			hash: "abc123",
+			subject: "Legacy commit",
+		});
+		expect(
+			appendCommit(abbreviated, {
+				hash: "abc123def4567890",
+				subject: "Same commit",
+			}),
+		).toBe(abbreviated);
+	});
+
 	test("reports malformed markers and duplicate event IDs", () => {
 		expect(parseTaskLog("<!-- docket:task-log:start -->\n").errors).not.toEqual(
 			[],
