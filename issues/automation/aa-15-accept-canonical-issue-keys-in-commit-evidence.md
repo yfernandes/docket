@@ -1,11 +1,11 @@
 ---
 id: aa-15-accept-canonical-issue-keys-in-commit-evidence
 title: AA-15 Accept canonical issue keys in commit evidence
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex-aa15
+owner_type: agent
+agent_id: codex-aa15
 tags: [automation]
 created_at: 2026-07-28
 closed_at: null
@@ -76,5 +76,8 @@ commit protections intact.
 
 - 2026-07-28T07:16:18.789Z — task triaged needs-triage -> ready-for-agent
 <!-- docket:event id=triage-2026-07-28T07:16:18.789Z -->
+
+- 2026-07-28T07:16:18.838Z — codex-aa15 claimed task
+<!-- docket:event id=claim-2026-07-28T07:16:18.838Z -->
 
 <!-- docket:task-log:end -->
