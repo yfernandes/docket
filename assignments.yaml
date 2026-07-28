@@ -155,3 +155,15 @@
   claimed_at: 2026-07-28T06:59:37.841Z
   lease_until: 2026-07-28T14:59:37.841Z
   released_at: 2026-07-28T07:05:03.085Z
+- task_id: aa-03-add-json-output-and-stable-errors-to-every-command
+  status: active
+  owner: codex-reconcile
+  owner_type: agent
+  agent_id: codex-reconcile
+  worktree: /home/yago/projects/active/docket
+  branch: null
+  claim_id: e52da2e8-1aa2-426b-9649-7b3643f62f43
+  base_commit: 3cdccadbc7934ef14d0c911f102000d1a97d2268
+  claimed_at: 2026-07-28T07:07:30.061Z
+  lease_until: 2026-07-28T09:07:30.054Z
+  released_at: null

@@ -1,11 +1,11 @@
 ---
 id: aa-03-add-json-output-and-stable-errors-to-every-command
 title: AA-03 Add JSON output and stable errors to every command
-status: ready-for-agent
+status: in-progress
 priority: P2
-owner: codex
+owner: codex-reconcile
 owner_type: agent
-agent_id: codex
+agent_id: codex-reconcile
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -64,5 +64,8 @@ Do not add `show`, `next`, `take`, claim IDs, or crew behavior. This task establ
 
 - 2026-07-28T07:07:21.380Z — task triaged in-progress -> ready-for-agent
 <!-- docket:event id=triage-2026-07-28T07:07:21.380Z -->
+
+- 2026-07-28T07:07:30.061Z — codex-reconcile claimed task
+<!-- docket:event id=claim-2026-07-28T07:07:30.061Z -->
 
 <!-- docket:task-log:end -->
