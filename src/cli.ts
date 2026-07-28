@@ -14,6 +14,7 @@ import {
 	cmdNew,
 	cmdNext,
 	cmdNote,
+	cmdNotes,
 	cmdRelease,
 	cmdRender,
 	cmdRenew,
@@ -95,6 +96,12 @@ Commands:
     --run <run-id>          Optional run attribution
     --stdin                 Read note text from stdin
     --json                  JSON output
+  notes                     Scout structured notes across active and archived tasks
+    --kind <kind>           Filter by note kind
+    --status <status>       Filter by task status
+    --scope <scope>         Filter by task scope
+    --author <name>         Filter by note author
+    --json                  JSON output
   commits list <task-id>    List recorded implementation commits
   commits add <task-id> <hash>...
                             Record explicit implementation commits
@@ -149,6 +156,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 				return cmdShow(rest);
 			case "note":
 				return cmdNote(rest);
+			case "notes":
+				return cmdNotes(rest);
 			case "commits":
 				return cmdCommits(rest);
 			case "ingest":

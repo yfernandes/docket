@@ -906,6 +906,36 @@ function parseTaskLog(body) {
   }
   return { log: { commits, notes, history }, errors, authoredBody };
 }
+function parseStructuredTaskLogNotes(body) {
+  const parsed = parseTaskLog(body);
+  if (!parsed.log || parsed.errors.length > 0)
+    return [];
+  const start = body.indexOf(START);
+  const end = body.indexOf(END);
+  const content = body.slice(start + START.length, end);
+  const notesStart = content.indexOf("### Implementation Notes");
+  if (notesStart === -1)
+    return [];
+  const notesEnd = sectionEnd(content, "### Implementation Notes") ?? content.length;
+  const notesContent = content.slice(notesStart, notesEnd);
+  const notes = [];
+  const entry = /^####\s+(.+?)\s+\u2014\s+(.+?)\s+\u2014\s+(.+?)\s*\n+<!--\s*docket:note\s+([^>]*?)\s*-->\s*\n*([\s\S]*?)(?=^####\s+|(?![\s\S]))/gm;
+  for (const match of notesContent.matchAll(entry)) {
+    const attrs = attributes(match[4]);
+    const timestamp = new Date(match[1].replace(" UTC", "Z"));
+    if (!attrs?.id || Number.isNaN(timestamp.valueOf()))
+      continue;
+    notes.push({
+      id: attrs.id,
+      attributes: attrs,
+      timestamp: timestamp.toISOString(),
+      kind: attrs.kind ?? match[2].trim(),
+      author: match[3].trim(),
+      content: match[5].trim()
+    });
+  }
+  return notes;
+}
 function ensureTaskLog(body) {
   const parsed = parseTaskLog(body);
   if (parsed.errors.length > 0)
@@ -2197,6 +2227,40 @@ async function cmdList(args) {
     console.log(fmt(row));
   return { issues: out };
 }
+function noteSummary(content) {
+  return content.replace(/\s+/g, " ").trim();
+}
+async function cmdNotes(args) {
+  const flags = parseFlags(args);
+  const issues = filterIssueRows(filteredIssues({}), Object.fromEntries(Object.entries(flags).filter(([key]) => key === "status" || key === "scope")));
+  const notes = issues.flatMap((issue) => {
+    const { body } = readIssue(issue._path);
+    return parseStructuredTaskLogNotes(body).map((note) => ({
+      task_id: issue.id,
+      task_path: relPath(issue._path),
+      task_status: issue.status,
+      task_scope: issue._scope,
+      note_id: note.id,
+      kind: note.kind,
+      author: note.author,
+      timestamp: note.timestamp,
+      content: note.content,
+      ...note.attributes.claim ? { claim: note.attributes.claim } : {},
+      ...note.attributes.run ? { run: note.attributes.run } : {}
+    }));
+  }).filter((note) => !flags.kind || note.kind === flags.kind).filter((note) => !flags.author || note.author === flags.author).sort((left, right) => left.task_path.localeCompare(right.task_path) || left.timestamp.localeCompare(right.timestamp) || left.note_id.localeCompare(right.note_id));
+  if (notes.length === 0) {
+    console.log("No notes found.");
+    return { notes };
+  }
+  console.log(`Notes (${notes.length})`);
+  for (const note of notes) {
+    console.log(`- ${note.kind} \u2014 ${note.task_id} (${note.task_scope}/${note.task_status}) \u2014 ${note.author} \u2014 ${note.timestamp}`);
+    console.log(`  ${note.task_path} \xB7 ${note.note_id}`);
+    console.log(`  ${noteSummary(note.content) || "(empty)"}`);
+  }
+  return { notes };
+}
 async function cmdNext(args) {
   const flags = parseFlags(args);
   const issues = filteredIssues({ status: "ready-for-agent", ...flags });
@@ -2350,10 +2414,12 @@ async function cmdShow(args) {
   const participantClaims = assignmentHistory.filter(isParticipant);
   const activeParticipants = participantClaims.filter((assignment) => assignment.status === "active");
   const taskLog = parsed.log ?? { commits: [], notes: [], history: [] };
+  const taskLogMarkdown = parsed.log ? body.slice(body.indexOf("## Task Log")).trim() : "";
   const result = {
     frontmatter,
     body: parsed.authoredBody,
     task_log: taskLog,
+    task_log_markdown: taskLogMarkdown,
     task_log_errors: parsed.errors,
     path: relPath(issuePath),
     scope: scopeFromPath(issuePath),
@@ -2386,6 +2452,9 @@ Body:`);
   console.log(parsed.authoredBody.trim() || "(empty)");
   console.log(`
 Task Log:`);
+  console.log(taskLogMarkdown || "(none)");
+  console.log(`
+Task Log summary:`);
   console.log(`Commits: ${taskLog.commits.length}`);
   for (const commit of taskLog.commits)
     console.log(`  ${commit.hash} ${commit.subject}`.trimEnd());
@@ -2643,6 +2712,12 @@ Commands:
     --run <run-id>          Optional run attribution
     --stdin                 Read note text from stdin
     --json                  JSON output
+  notes                     Scout structured notes across active and archived tasks
+    --kind <kind>           Filter by note kind
+    --status <status>       Filter by task status
+    --scope <scope>         Filter by task scope
+    --author <name>         Filter by note author
+    --json                  JSON output
   commits list <task-id>    List recorded implementation commits
   commits add <task-id> <hash>...
                             Record explicit implementation commits
@@ -2696,6 +2771,8 @@ async function main(args = process.argv.slice(2)) {
         return cmdShow(rest);
       case "note":
         return cmdNote(rest);
+      case "notes":
+        return cmdNotes(rest);
       case "commits":
         return cmdCommits(rest);
       case "ingest":

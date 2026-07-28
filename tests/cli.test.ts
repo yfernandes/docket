@@ -1250,6 +1250,110 @@ describe("notes and lifecycle history", () => {
 	});
 });
 
+describe("cross-task note scouting", () => {
+	for (const entrypoint of ["source", "bundled"] as const) {
+		test(`${entrypoint} scouts structured notes from active and archived tasks without rewriting them`, () => {
+			withFixture((fixture) => {
+				const archivedDir = join(fixture, "issues", "automation", "done");
+				mkdirSync(archivedDir, { recursive: true });
+				const archivedPath = join(archivedDir, "2025-01-04-archived-notes.md");
+				writeFileSync(
+					archivedPath,
+					TASK_WITH_LOG.replace("id: task-with-log", "id: archived-notes")
+						.replace(
+							"title: Task with complete context",
+							"title: Archived notes",
+						)
+						.replace("status: in-progress", "status: done")
+						.replace("owner: codex", "owner: archivist")
+						.replace("agent_id: codex", "agent_id: archivist")
+						.replaceAll("— codex", "— archivist")
+						.replace(
+							"This identifier sorts before the previous note.",
+							"This identifier sorts before the previous note.\n\n#### 2025-01-03 10:45 UTC — human context — archivist\n\nHuman context without structured metadata stays in the task.",
+						),
+				);
+				const activePath = join(
+					fixture,
+					"issues",
+					"automation",
+					"task-with-log.md",
+				);
+				writeFileSync(activePath, TASK_WITH_LOG);
+				const before = new Map(
+					[activePath, archivedPath].map((path) => [
+						path,
+						readFileSync(path, "utf-8"),
+					]),
+				);
+
+				const result = run(fixture, entrypoint, ["notes", "--json"]);
+				expect(result.exitCode).toBe(0);
+				const notes = jsonResult(result).data.notes as Record<
+					string,
+					unknown
+				>[];
+				expect(notes).toHaveLength(4);
+				expect(notes.map((note) => note.note_id)).toEqual([
+					"note-first",
+					"note-second",
+					"note-first",
+					"note-second",
+				]);
+				expect(notes[0]).toMatchObject({
+					task_id: "archived-notes",
+					task_path: "issues/automation/done/2025-01-04-archived-notes.md",
+					task_status: "done",
+					task_scope: "automation",
+					kind: "blocker",
+					author: "archivist",
+					timestamp: "2025-01-03T10:00:00.000Z",
+					content: "This identifier sorts before the previous note.",
+				});
+				expect(
+					notes.some((note) => String(note.content).includes("Human context")),
+				).toBe(false);
+				for (const [path, contents] of before)
+					expect(readFileSync(path, "utf-8")).toBe(contents);
+
+				const blockers = run(fixture, entrypoint, [
+					"notes",
+					"--kind",
+					"blocker",
+					"--status",
+					"done",
+					"--scope",
+					"automation",
+					"--author",
+					"archivist",
+					"--json",
+				]);
+				expect(blockers.exitCode).toBe(0);
+				expect(jsonResult(blockers).data.notes).toEqual([
+					expect.objectContaining({
+						task_id: "archived-notes",
+						note_id: "note-first",
+					}),
+				]);
+
+				const empty = run(fixture, entrypoint, [
+					"notes",
+					"--kind",
+					"rough-edge",
+					"--json",
+				]);
+				expect(empty.exitCode).toBe(0);
+				expect(jsonResult(empty).data.notes).toEqual([]);
+				expect(
+					run(fixture, entrypoint, ["show", "archived-notes"]).stdout,
+				).toContain(
+					"Human context without structured metadata stays in the task.",
+				);
+			});
+		});
+	}
+});
+
 describe("agent claim identity and renewal", () => {
 	for (const entrypoint of ["source", "bundled"] as const) {
 		test(`${entrypoint} issues claim IDs, renews from now, and keeps human commands compatible`, () => {
@@ -2296,6 +2400,7 @@ describe("show complete task context", () => {
 					"frontmatter",
 					"body",
 					"task_log",
+					"task_log_markdown",
 					"task_log_errors",
 					"path",
 					"scope",
@@ -2307,6 +2412,9 @@ describe("show complete task context", () => {
 				]);
 				expect(output.data.body).toBe(
 					"\n## Context\n\nKeep this authored body exactly.",
+				);
+				expect(output.data.task_log_markdown).toContain(
+					"Keep the parser output in file order.",
 				);
 				expect(output.data.path).toBe("issues/automation/task-with-log.md");
 				expect(output.data.scope).toBe("automation");

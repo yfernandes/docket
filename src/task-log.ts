@@ -9,6 +9,14 @@ export interface TaskLogNote {
 	attributes: Record<string, string>;
 }
 
+/** A canonical structured note, including the authored heading and body. */
+export interface StructuredTaskLogNote extends TaskLogNote {
+	timestamp: string;
+	kind: string;
+	author: string;
+	content: string;
+}
+
 export interface NewTaskLogNote {
 	id: string;
 	timestamp: string;
@@ -171,6 +179,45 @@ export function parseTaskLog(body: string): ParsedTaskLog {
 			errors.push(`Duplicate Task Log ${label}`);
 	}
 	return { log: { commits, notes, history }, errors, authoredBody };
+}
+
+/**
+ * Return only canonical, structured Implementation Notes. Human-authored prose
+ * that does not have a Docket note marker remains authored Markdown, rather
+ * than becoming an incomplete query result.
+ */
+export function parseStructuredTaskLogNotes(
+	body: string,
+): StructuredTaskLogNote[] {
+	const parsed = parseTaskLog(body);
+	if (!parsed.log || parsed.errors.length > 0) return [];
+
+	const start = body.indexOf(START);
+	const end = body.indexOf(END);
+	const content = body.slice(start + START.length, end);
+	const notesStart = content.indexOf("### Implementation Notes");
+	if (notesStart === -1) return [];
+	const notesEnd =
+		sectionEnd(content, "### Implementation Notes") ?? content.length;
+	const notesContent = content.slice(notesStart, notesEnd);
+	const notes: StructuredTaskLogNote[] = [];
+	const entry =
+		/^####\s+(.+?)\s+—\s+(.+?)\s+—\s+(.+?)\s*\n+<!--\s*docket:note\s+([^>]*?)\s*-->\s*\n*([\s\S]*?)(?=^####\s+|(?![\s\S]))/gm;
+
+	for (const match of notesContent.matchAll(entry)) {
+		const attrs = attributes(match[4]);
+		const timestamp = new Date(match[1].replace(" UTC", "Z"));
+		if (!attrs?.id || Number.isNaN(timestamp.valueOf())) continue;
+		notes.push({
+			id: attrs.id,
+			attributes: attrs,
+			timestamp: timestamp.toISOString(),
+			kind: attrs.kind ?? match[2].trim(),
+			author: match[3].trim(),
+			content: match[5].trim(),
+		});
+	}
+	return notes;
 }
 
 export function ensureTaskLog(body: string): string {

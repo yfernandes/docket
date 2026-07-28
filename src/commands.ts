@@ -56,6 +56,7 @@ import {
 	appendHistoryEvent,
 	appendNote,
 	noteTextContainsTaskLogMarker,
+	parseStructuredTaskLogNotes,
 	parseTaskLog,
 } from "./task-log";
 import type { Assignment, IssueFrontmatter } from "./types";
@@ -1785,6 +1786,78 @@ export async function cmdList(args: string[]) {
 	return { issues: out };
 }
 
+// ── task notes ───────────────────────────────────────────────────────────────
+
+export interface ScoutedNote {
+	task_id: string;
+	task_path: string;
+	task_status: IssueFrontmatter["status"];
+	task_scope: string;
+	note_id: string;
+	kind: string;
+	author: string;
+	timestamp: string;
+	content: string;
+	claim?: string;
+	run?: string;
+}
+
+function noteSummary(content: string): string {
+	return content.replace(/\s+/g, " ").trim();
+}
+
+export async function cmdNotes(args: string[]) {
+	const flags = parseFlags(args);
+	const issues = filterIssueRows(
+		filteredIssues({}),
+		Object.fromEntries(
+			Object.entries(flags).filter(
+				([key]) => key === "status" || key === "scope",
+			),
+		),
+	);
+	const notes = issues
+		.flatMap((issue): ScoutedNote[] => {
+			const { body } = readIssue(issue._path);
+			return parseStructuredTaskLogNotes(body).map((note) => ({
+				task_id: issue.id,
+				task_path: relPath(issue._path),
+				task_status: issue.status,
+				task_scope: issue._scope,
+				note_id: note.id,
+				kind: note.kind,
+				author: note.author,
+				timestamp: note.timestamp,
+				content: note.content,
+				...(note.attributes.claim ? { claim: note.attributes.claim } : {}),
+				...(note.attributes.run ? { run: note.attributes.run } : {}),
+			}));
+		})
+		.filter((note) => !flags.kind || note.kind === flags.kind)
+		.filter((note) => !flags.author || note.author === flags.author)
+		.sort(
+			(left, right) =>
+				left.task_path.localeCompare(right.task_path) ||
+				left.timestamp.localeCompare(right.timestamp) ||
+				left.note_id.localeCompare(right.note_id),
+		);
+
+	if (notes.length === 0) {
+		console.log("No notes found.");
+		return { notes };
+	}
+
+	console.log(`Notes (${notes.length})`);
+	for (const note of notes) {
+		console.log(
+			`- ${note.kind} — ${note.task_id} (${note.task_scope}/${note.task_status}) — ${note.author} — ${note.timestamp}`,
+		);
+		console.log(`  ${note.task_path} · ${note.note_id}`);
+		console.log(`  ${noteSummary(note.content) || "(empty)"}`);
+	}
+	return { notes };
+}
+
 // ── task next ─────────────────────────────────────────────────────────────────
 
 export async function cmdNext(args: string[]) {
@@ -2062,10 +2135,14 @@ export async function cmdShow(args: string[]) {
 		(assignment) => assignment.status === "active",
 	);
 	const taskLog = parsed.log ?? { commits: [], notes: [], history: [] };
+	const taskLogMarkdown = parsed.log
+		? body.slice(body.indexOf("## Task Log")).trim()
+		: "";
 	const result = {
 		frontmatter,
 		body: parsed.authoredBody,
 		task_log: taskLog,
+		task_log_markdown: taskLogMarkdown,
 		task_log_errors: parsed.errors,
 		path: relPath(issuePath),
 		scope: scopeFromPath(issuePath),
@@ -2108,6 +2185,8 @@ export async function cmdShow(args: string[]) {
 	console.log("\nBody:");
 	console.log(parsed.authoredBody.trim() || "(empty)");
 	console.log("\nTask Log:");
+	console.log(taskLogMarkdown || "(none)");
+	console.log("\nTask Log summary:");
 	console.log(`Commits: ${taskLog.commits.length}`);
 	for (const commit of taskLog.commits)
 		console.log(`  ${commit.hash} ${commit.subject}`.trimEnd());
