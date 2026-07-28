@@ -1,7 +1,7 @@
 ---
 id: aa-06-capture-implementation-commits
 title: AA-06 Capture implementation commits
-status: needs-triage
+status: ready-for-agent
 priority: P2
 owner: human
 owner_type: human
@@ -47,3 +47,18 @@ Do not derive remote hosting links or require commits for claim completion.
 
 - `docs/agent-automation-plan.md#commit-capture`
 - `docs/agent-automation-plan.md#aa-06--commit-recording`
+
+## Task Log
+
+<!-- docket:task-log:start -->
+
+### Commits
+
+### Implementation Notes
+
+### History
+
+- 2026-07-28T04:59:15.960Z — task triaged needs-triage -> ready-for-agent
+<!-- docket:event id=triage-2026-07-28T04:59:15.960Z -->
+
+<!-- docket:task-log:end -->
