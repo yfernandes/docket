@@ -1317,6 +1317,257 @@ describe("agent claim identity and renewal", () => {
 	}
 });
 
+describe("participant roles and outcomes", () => {
+	for (const entrypoint of ["source", "bundled"] as const) {
+		test(`${entrypoint} keeps one primary while distinct participant slots coexist and finish independently`, () => {
+			withFixture((fixture) => {
+				expect(
+					run(fixture, entrypoint, ["claim", "legacy-task", "--owner", "yago"])
+						.exitCode,
+				).toBe(0);
+
+				const first = run(fixture, entrypoint, [
+					"claim",
+					"legacy-task",
+					"--agent",
+					"reviewer-one",
+					"--role",
+					"reviewer",
+					"--slot",
+					"review-1",
+					"--run",
+					"cycle-a",
+					"--lease",
+					"60",
+					"--json",
+				]);
+				expect(first.exitCode).toBe(0);
+				const firstClaim = String(
+					(jsonResult(first).data.assignment as Record<string, unknown>)
+						.claim_id,
+				);
+				expect(
+					jsonResult(first).data.assignment as Record<string, unknown>,
+				).toMatchObject({
+					assignment_type: "participant",
+					role: "reviewer",
+					slot: "review-1",
+					run_id: "cycle-a",
+					claim_id: firstClaim,
+				});
+
+				const second = run(fixture, entrypoint, [
+					"claim",
+					"legacy-task",
+					"--agent",
+					"reviewer-two",
+					"--role",
+					"reviewer",
+					"--slot",
+					"review-2",
+					"--run",
+					"cycle-a",
+					"--lease",
+					"60",
+					"--json",
+				]);
+				expect(second.exitCode).toBe(0);
+				const secondClaim = String(
+					(jsonResult(second).data.assignment as Record<string, unknown>)
+						.claim_id,
+				);
+
+				const duplicateSlot = run(fixture, entrypoint, [
+					"claim",
+					"legacy-task",
+					"--agent",
+					"reviewer-three",
+					"--role",
+					"reviewer",
+					"--slot",
+					"review-1",
+					"--lease",
+					"60",
+					"--json",
+				]);
+				expect(duplicateSlot.exitCode).toBe(1);
+				expect(jsonResult(duplicateSlot).error.code).toBe(
+					"TASK_ALREADY_CLAIMED",
+				);
+
+				const finished = run(fixture, entrypoint, [
+					"finish",
+					"legacy-task",
+					"--claim",
+					firstClaim,
+					"--outcome",
+					"approved",
+					"--note",
+					"Review is ready to merge.",
+					"--json",
+				]);
+				expect(finished.exitCode).toBe(0);
+				expect(
+					jsonResult(finished).data.assignment as Record<string, unknown>,
+				).toMatchObject({
+					status: "completed",
+					outcome: "approved",
+					claim_id: firstClaim,
+					completed_at: expect.any(String),
+					note_id: expect.any(String),
+				});
+
+				const custom = run(fixture, entrypoint, [
+					"finish",
+					"legacy-task",
+					"--claim",
+					secondClaim,
+					"--outcome",
+					"needs-escalation",
+					"--json",
+				]);
+				expect(custom.exitCode).toBe(0);
+				const issue = readFileSync(
+					join(fixture, "issues", "automation", "legacy-task.md"),
+					"utf-8",
+				);
+				expect(issue).toContain("status: in-progress");
+				expect(issue).toContain("Review is ready to merge.");
+				expect(issue).toContain(`claim=${firstClaim} run=cycle-a kind=outcome`);
+				expect(issue).toContain("outcome 'needs-escalation'");
+
+				const shown = run(fixture, entrypoint, [
+					"show",
+					"legacy-task",
+					"--json",
+				]);
+				expect(shown.exitCode).toBe(0);
+				const shownData = jsonResult(shown).data;
+				expect(shownData.primary_assignment).toMatchObject({ owner: "yago" });
+				expect(shownData.active_participants).toEqual([]);
+				expect(shownData.participant_claims).toMatchObject([
+					{ claim_id: firstClaim, status: "completed", outcome: "approved" },
+					{
+						claim_id: secondClaim,
+						status: "completed",
+						outcome: "needs-escalation",
+					},
+				]);
+			});
+		});
+
+		test(`${entrypoint} rejects a stale participant finish after expiry and replacement`, () => {
+			withFixture((fixture) => {
+				const old = run(fixture, entrypoint, [
+					"claim",
+					"legacy-task",
+					"--agent",
+					"reviewer-old",
+					"--role",
+					"reviewer",
+					"--slot",
+					"review-1",
+					"--run",
+					"cycle-a",
+					"--lease",
+					"60",
+					"--json",
+				]);
+				expect(old.exitCode).toBe(0);
+				const oldClaim = String(
+					(jsonResult(old).data.assignment as Record<string, unknown>).claim_id,
+				);
+				const assignmentsPath = join(fixture, "assignments.yaml");
+				writeFileSync(
+					assignmentsPath,
+					readFileSync(assignmentsPath, "utf-8").replace(
+						new RegExp(
+							`(claim_id: ${oldClaim}\\n  claimed_at: .*\\n  )lease_until: .*`,
+						),
+						"$1lease_until: 2020-01-01T00:00:00.000Z",
+					),
+				);
+				expect(run(fixture, entrypoint, ["doctor"]).exitCode).toBe(0);
+
+				const replacement = run(fixture, entrypoint, [
+					"claim",
+					"legacy-task",
+					"--agent",
+					"reviewer-new",
+					"--role",
+					"reviewer",
+					"--slot",
+					"review-1",
+					"--run",
+					"cycle-b",
+					"--lease",
+					"60",
+					"--json",
+				]);
+				expect(replacement.exitCode).toBe(0);
+				const replacementClaim = String(
+					(jsonResult(replacement).data.assignment as Record<string, unknown>)
+						.claim_id,
+				);
+				expect(replacementClaim).not.toBe(oldClaim);
+
+				const staleFinish = run(fixture, entrypoint, [
+					"finish",
+					"legacy-task",
+					"--claim",
+					oldClaim,
+					"--json",
+				]);
+				expect(staleFinish.exitCode).toBe(1);
+				expect(jsonResult(staleFinish).error.code).toBe("CLAIM_MISMATCH");
+			});
+		});
+	}
+
+	test("finish rolls back its participant completion and optional Task Log note together", () => {
+		withFixture((fixture) => {
+			const participant = run(fixture, "source", [
+				"claim",
+				"legacy-task",
+				"--agent",
+				"reviewer",
+				"--role",
+				"reviewer",
+				"--slot",
+				"review-1",
+				"--run",
+				"cycle-a",
+				"--lease",
+				"60",
+				"--json",
+			]);
+			expect(participant.exitCode).toBe(0);
+			const claimId = String(
+				(jsonResult(participant).data.assignment as Record<string, unknown>)
+					.claim_id,
+			);
+			const paths = [
+				join(fixture, "assignments.yaml"),
+				join(fixture, "flow.md"),
+				join(fixture, "issues", "automation", "legacy-task.md"),
+			];
+			const before = paths.map((path) => readFileSync(path, "utf-8"));
+			writeFileSync(join(fixture, ".git", "index.lock"), "forced failure\n");
+			expect(
+				run(fixture, "source", [
+					"finish",
+					"legacy-task",
+					"--claim",
+					claimId,
+					"--note",
+					"This must roll back.",
+				]).exitCode,
+			).not.toBe(0);
+			expect(paths.map((path) => readFileSync(path, "utf-8"))).toEqual(before);
+		});
+	});
+});
+
 describe("implementation commit capture", () => {
 	for (const entrypoint of ["source", "bundled"] as const) {
 		test(`${entrypoint} captures claim bases, detects ranges, and retains full hashes in JSON`, () => {
@@ -1791,6 +2042,8 @@ describe("show complete task context", () => {
 					"scope",
 					"primary_assignment",
 					"has_active_assignment",
+					"participant_claims",
+					"active_participants",
 					"assignment_history",
 				]);
 				expect(output.data.body).toBe(

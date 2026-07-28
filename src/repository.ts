@@ -206,13 +206,21 @@ export function toAssignment(r: Record<string, string | null>): Assignment {
 		owner: r.owner ?? "",
 		owner_type: (r.owner_type ?? "human") as Assignment["owner_type"],
 		agent_id: r.agent_id ?? null,
+		assignment_type:
+			(r.assignment_type as Assignment["assignment_type"]) ?? null,
+		role: r.role ?? null,
+		slot: r.slot ?? null,
+		run_id: r.run_id ?? r.run ?? null,
 		worktree: r.worktree ?? null,
 		branch: r.branch ?? null,
 		claim_id: r.claim_id ?? null,
 		base_commit: r.base_commit ?? null,
 		claimed_at: r.claimed_at ?? new Date().toISOString(),
 		lease_until: r.lease_until ?? null,
+		completed_at: r.completed_at ?? null,
 		released_at: r.released_at ?? null,
+		outcome: r.outcome ?? null,
+		note_id: r.note_id ?? null,
 	};
 }
 
@@ -222,12 +230,20 @@ export const ASSIGNMENT_KEYS: (keyof Assignment)[] = [
 	"owner",
 	"owner_type",
 	"agent_id",
+	"assignment_type",
+	"role",
+	"slot",
+	"run_id",
 	"worktree",
 	"branch",
 	"claim_id",
+	"base_commit",
 	"claimed_at",
 	"lease_until",
+	"completed_at",
 	"released_at",
+	"outcome",
+	"note_id",
 ];
 
 export function serializeAssignments(records: Assignment[]): string {
@@ -236,14 +252,18 @@ export function serializeAssignments(records: Assignment[]): string {
 	return `${records
 		.map((r) => {
 			const [first, ...rest] = ASSIGNMENT_KEYS;
-			const keys = [
-				...rest
-					.slice(0, rest.indexOf("claimed_at"))
-					.filter((key) => key !== "claim_id"),
-				...(r.claim_id ? (["claim_id"] as const) : []),
-				...(r.base_commit ? (["base_commit"] as const) : []),
-				...rest.slice(rest.indexOf("claimed_at")),
-			];
+			const optional = new Set<keyof Assignment>([
+				"assignment_type",
+				"role",
+				"slot",
+				"run_id",
+				"claim_id",
+				"base_commit",
+				"completed_at",
+				"outcome",
+				"note_id",
+			]);
+			const keys = rest.filter((key) => !optional.has(key) || r[key]);
 			return (
 				`- ${first}: ${v(r[first])}\n` +
 				keys.map((k) => `  ${k}: ${v(r[k])}`).join("\n")

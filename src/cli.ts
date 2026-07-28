@@ -7,6 +7,7 @@ import {
 	cmdCommits,
 	cmdConfig,
 	cmdDoctor,
+	cmdFinish,
 	cmdIngest,
 	cmdLint,
 	cmdList,
@@ -36,6 +37,9 @@ Commands:
     --worktree <path>       Worktree path
     --branch <name>         Branch name
     --lease <minutes>       Lease duration (required for agents)
+    --role <role>           Add an agent participant role (requires --slot)
+    --slot <slot>           Distinct participant slot
+    --run <run-id>          Optional participant run attribution
   triage <task-id> <status> Update issue triage status
   release <task-id>         Release a task back to open
     --reason <note>         Optional reason
@@ -43,6 +47,11 @@ Commands:
   renew <task-id>           Renew an active agent claim
     --claim <claim-id>      Required active claim identity
     --lease <minutes>       Required lease duration
+  finish <task-id>         Complete one participant claim; leaves task open
+    --claim <claim-id>      Required active participant claim identity
+    --outcome <outcome>     Outcome (default: completed; custom values allowed)
+    --note <text>           Optional atomic Task Log outcome note
+    --stdin                 Read optional outcome note from stdin
   close <task-id>           Mark done and archive
     --wontfix              Archive as wontfix instead of done
     --commit <hash>         Record validated implementation evidence
@@ -113,6 +122,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 				return cmdRelease(rest);
 			case "renew":
 				return cmdRenew(rest);
+			case "finish":
+				return cmdFinish(rest);
 			case "close":
 				return cmdClose(rest);
 			case "config":

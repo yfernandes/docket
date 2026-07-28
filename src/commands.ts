@@ -272,15 +272,41 @@ export async function cmdLint() {
 		warn("assignments.yaml not found");
 	} else {
 		const assignments = readAssignments();
-		const activeCounts = new Map<string, number>();
+		const activePrimaryCounts = new Map<string, number>();
+		const activeParticipantSlots = new Map<string, Set<string>>();
 		for (const a of assignments) {
-			if (a.status === "active")
-				activeCounts.set(a.task_id, (activeCounts.get(a.task_id) ?? 0) + 1);
+			if (a.status !== "active") continue;
+			if (a.assignment_type === "participant") {
+				if (
+					a.owner_type !== "agent" ||
+					!a.role ||
+					!a.slot ||
+					!a.claim_id ||
+					!a.lease_until
+				) {
+					err(
+						`assignments.yaml: participant assignment for '${a.task_id}' must have an agent, role, slot, claim_id, and lease_until`,
+					);
+				}
+				const slots =
+					activeParticipantSlots.get(a.task_id) ?? new Set<string>();
+				if (slots.has(a.slot ?? ""))
+					err(
+						`assignments.yaml: duplicate active participant slot '${a.slot}' for task_id '${a.task_id}'`,
+					);
+				slots.add(a.slot ?? "");
+				activeParticipantSlots.set(a.task_id, slots);
+			} else {
+				activePrimaryCounts.set(
+					a.task_id,
+					(activePrimaryCounts.get(a.task_id) ?? 0) + 1,
+				);
+			}
 		}
-		for (const [id, count] of activeCounts) {
+		for (const [id, count] of activePrimaryCounts) {
 			if (count > 1)
 				err(
-					`assignments.yaml: ${count} active records for task_id '${id}' (must be unique)`,
+					`assignments.yaml: ${count} active primary records for task_id '${id}' (must be unique)`,
 				);
 		}
 		for (const a of assignments.filter(
@@ -362,7 +388,7 @@ export async function cmdClaim(args: string[]) {
 	const taskId = args[0];
 	if (!taskId)
 		die(
-			"Usage: task claim <task-id> [--owner <name>] [--agent <id>] [--worktree <path>] [--branch <branch>] [--lease <minutes>]",
+			"Usage: task claim <task-id> [--owner <name>] [--agent <id>] [--role <role> --slot <slot> [--run <run-id>]] [--worktree <path>] [--branch <branch>] [--lease <minutes>]",
 		);
 
 	const flags = parseFlags(args.slice(1));
@@ -372,9 +398,22 @@ export async function cmdClaim(args: string[]) {
 	const branch = flags.branch ?? null;
 	const leaseMinutes = flags.lease ? parseInt(flags.lease, 10) : null;
 	const ownerType: "human" | "agent" = agentId ? "agent" : "human";
+	const participant = Boolean(flags.role || flags.slot || flags.run);
 
 	if (ownerType === "agent" && !leaseMinutes)
 		die("Agent claims require --lease <minutes>");
+	if (participant && (!agentId || !flags.role || !flags.slot))
+		die(
+			"Participant claims require --agent <id>, --role <role>, --slot <slot>, and --lease <minutes>",
+		);
+	for (const [field, value] of [
+		["role", flags.role],
+		["slot", flags.slot],
+		["run", flags.run],
+	] as const) {
+		if (value?.match(/[\s=>]/))
+			usageError(`Claim ${field} must not contain whitespace, '=' or '>'.`);
+	}
 
 	const record = await claimTask(taskId, {
 		agentId,
@@ -383,6 +422,10 @@ export async function cmdClaim(args: string[]) {
 		worktree,
 		branch,
 		leaseMinutes,
+		assignmentType: participant ? "participant" : "primary",
+		role: participant ? (flags.role ?? null) : null,
+		slot: participant ? (flags.slot ?? null) : null,
+		runId: participant ? (flags.run ?? null) : null,
 	});
 	console.log(`Claimed '${taskId}' by '${owner}'`);
 	return { task_id: taskId, assignment: record };
@@ -395,6 +438,36 @@ interface ClaimOptions {
 	worktree: string | null;
 	branch: string | null;
 	leaseMinutes: number | null;
+	assignmentType: "primary" | "participant";
+	role: string | null;
+	slot: string | null;
+	runId: string | null;
+}
+
+function isParticipant(assignment: Assignment): boolean {
+	return assignment.assignment_type === "participant";
+}
+
+function activePrimaryIndex(assignments: Assignment[], taskId: string): number {
+	return assignments.findIndex(
+		(assignment) =>
+			assignment.task_id === taskId &&
+			assignment.status === "active" &&
+			!isParticipant(assignment),
+	);
+}
+
+function activeClaimIndex(
+	assignments: Assignment[],
+	taskId: string,
+	claimId: string,
+): number {
+	return assignments.findIndex(
+		(assignment) =>
+			assignment.task_id === taskId &&
+			assignment.status === "active" &&
+			assignment.claim_id === claimId,
+	);
 }
 
 interface ExpiredClaim {
@@ -421,15 +494,36 @@ function expireEligibleClaims(
 
 function writeExpiredClaimIssues(
 	expired: ExpiredClaim[],
+	assignments: Assignment[],
 	expiredAt: string,
 ): void {
 	for (const { assignment, issuePath } of expired) {
 		if (!issuePath) continue;
 		const { data, body } = readIssue(issuePath);
-		data.status = "ready-for-agent";
-		data.owner = "human";
-		data.owner_type = "human";
-		data.agent_id = null;
+		const activePrimary = assignments.find(
+			(candidate) =>
+				candidate.task_id === assignment.task_id &&
+				candidate.status === "active" &&
+				!isParticipant(candidate),
+		);
+		const hasActiveParticipant = assignments.some(
+			(candidate) =>
+				candidate.task_id === assignment.task_id &&
+				candidate.status === "active" &&
+				isParticipant(candidate),
+		);
+		if (!activePrimary && !hasActiveParticipant)
+			data.status = "ready-for-agent";
+		else data.status = "in-progress";
+		if (activePrimary) {
+			data.owner = activePrimary.owner;
+			data.owner_type = activePrimary.owner_type;
+			data.agent_id = activePrimary.agent_id;
+		} else {
+			data.owner = "human";
+			data.owner_type = "human";
+			data.agent_id = null;
+		}
 		writeIssue(
 			issuePath,
 			data,
@@ -448,10 +542,13 @@ async function claimTask(
 	expired: ExpiredClaim[] = [],
 	message = `claim(${taskId}): ${options.owner}`,
 ): Promise<Assignment> {
-	const conflict = assignments.find(
-		(assignment) =>
-			assignment.task_id === taskId && assignment.status === "active",
-	);
+	const conflict = assignments.find((assignment) => {
+		if (assignment.task_id !== taskId || assignment.status !== "active")
+			return false;
+		if (options.assignmentType === "participant")
+			return isParticipant(assignment) && assignment.slot === options.slot;
+		return !isParticipant(assignment);
+	});
 	if (conflict) die(`Task '${taskId}' already claimed by '${conflict.owner}'`);
 
 	const expiredTaskIds = new Set(
@@ -465,7 +562,19 @@ async function claimTask(
 			"ready-for-agent",
 			"ready-for-human",
 		]);
-		if (!claimableStatuses.has(data.status) && !expiredTaskIds.has(taskId)) {
+		const hasActiveParticipant = assignments.some(
+			(assignment) =>
+				assignment.task_id === taskId &&
+				assignment.status === "active" &&
+				isParticipant(assignment),
+		);
+		const hasActivePrimary = activePrimaryIndex(assignments, taskId) !== -1;
+		if (
+			!claimableStatuses.has(data.status) &&
+			!expiredTaskIds.has(taskId) &&
+			!hasActiveParticipant &&
+			!hasActivePrimary
+		) {
 			die(
 				`Task '${taskId}' has status '${data.status}' and cannot be claimed. Claimable statuses: open, ready-for-agent, ready-for-human`,
 			);
@@ -485,13 +594,21 @@ async function claimTask(
 		owner: options.owner,
 		owner_type: options.ownerType,
 		agent_id: options.agentId,
+		assignment_type:
+			options.assignmentType === "participant" ? "participant" : null,
+		role: options.role,
+		slot: options.slot,
+		run_id: options.runId,
 		worktree: options.worktree,
 		branch: options.branch,
 		claim_id: options.ownerType === "agent" ? crypto.randomUUID() : null,
 		base_commit: baseCommit,
 		claimed_at: new Date().toISOString(),
 		lease_until: leaseUntil,
+		completed_at: null,
 		released_at: null,
+		outcome: null,
+		note_id: null,
 	};
 	const changedFiles = [
 		ASSIGNMENTS_PATH,
@@ -503,22 +620,28 @@ async function claimTask(
 	];
 
 	await commitWithRollback(message, changedFiles, async () => {
-		if (expired.length > 0) writeExpiredClaimIssues(expired, record.claimed_at);
+		if (expired.length > 0)
+			writeExpiredClaimIssues(expired, assignments, record.claimed_at);
 		assignments.push(record);
 		writeAssignments(assignments);
 
 		if (issuePath) {
 			const { data, body } = readIssue(issuePath);
 			data.status = "in-progress";
-			data.owner = options.owner;
-			data.owner_type = options.ownerType;
-			data.agent_id = options.agentId;
+			if (options.assignmentType === "primary") {
+				data.owner = options.owner;
+				data.owner_type = options.ownerType;
+				data.agent_id = options.agentId;
+			}
 			writeIssue(
 				issuePath,
 				data,
 				appendHistoryEvent(body, {
 					id: `claim-${record.claimed_at}`,
-					text: `- ${record.claimed_at} — ${options.owner} claimed task`,
+					text:
+						options.assignmentType === "participant"
+							? `- ${record.claimed_at} — ${options.owner} claimed participant slot '${options.slot}' as ${options.role}${options.runId ? ` (run ${options.runId})` : ""}`
+							: `- ${record.claimed_at} — ${options.owner} claimed task`,
 				}),
 			);
 		}
@@ -544,21 +667,11 @@ async function commitExpiredClaims(
 			.filter((path): path is string => path !== null),
 	];
 	await commitWithRollback(message, changedFiles, async () => {
-		writeExpiredClaimIssues(expired, expiredAt);
+		writeExpiredClaimIssues(expired, assignments, expiredAt);
 		writeAssignments(assignments);
 		await cmdRender();
 		await gitAdd(changedFiles);
 	});
-}
-
-function activeAssignmentIndex(
-	assignments: Assignment[],
-	taskId: string,
-): number {
-	return assignments.findIndex(
-		(assignment) =>
-			assignment.task_id === taskId && assignment.status === "active",
-	);
 }
 
 function requireClaim(
@@ -593,7 +706,7 @@ export async function cmdRenew(args: string[]) {
 		die("Usage: task renew <task-id> --claim <claim-id> --lease <minutes>");
 	const lease = leaseFromNow(flags.lease);
 	const assignments = readAssignments();
-	const idx = activeAssignmentIndex(assignments, taskId);
+	const idx = activeClaimIndex(assignments, taskId, flags.claim);
 	const assignment = idx === -1 ? undefined : assignments[idx];
 	requireClaim(assignment, taskId, flags.claim);
 	if (assignment?.owner_type !== "agent")
@@ -672,7 +785,10 @@ export async function cmdRelease(args: string[]) {
 	const flags = parseFlags(args.slice(1));
 
 	const assignments = readAssignments();
-	const idx = activeAssignmentIndex(assignments, taskId);
+	const idx = flags.claim
+		? activeClaimIndex(assignments, taskId, flags.claim)
+		: activePrimaryIndex(assignments, taskId);
+	if (idx === -1 && flags.claim) requireClaim(undefined, taskId, flags.claim);
 	if (idx === -1) die(`No active assignment for '${taskId}'`);
 	requireClaim(assignments[idx], taskId, flags.claim);
 
@@ -688,10 +804,17 @@ export async function cmdRelease(args: string[]) {
 
 		if (issuePath) {
 			const { data, body } = readIssue(issuePath);
-			data.status = "open";
-			data.owner = "human";
-			data.owner_type = "human";
-			data.agent_id = null;
+			const hasActiveAssignment = assignments.some(
+				(assignment) =>
+					assignment.task_id === taskId && assignment.status === "active",
+			);
+			const hasActivePrimary = activePrimaryIndex(assignments, taskId) !== -1;
+			if (!hasActiveAssignment) data.status = "open";
+			if (!hasActivePrimary) {
+				data.owner = "human";
+				data.owner_type = "human";
+				data.agent_id = null;
+			}
 			writeIssue(
 				issuePath,
 				data,
@@ -773,7 +896,9 @@ export async function cmdNote(args: string[]) {
 
 	const activeAssignment = readAssignments().find(
 		(assignment) =>
-			assignment.task_id === parsed.taskId && assignment.status === "active",
+			assignment.task_id === parsed.taskId &&
+			assignment.status === "active" &&
+			!isParticipant(assignment),
 	);
 	const author =
 		parsed.author ??
@@ -821,6 +946,127 @@ export async function cmdNote(args: string[]) {
 	return { task_id: parsed.taskId, note };
 }
 
+// ── task finish ──────────────────────────────────────────────────────────────
+
+interface FinishArguments {
+	taskId?: string;
+	claim?: string;
+	outcome: string;
+	note?: string;
+	stdin: boolean;
+}
+
+function parseFinishArgs(args: string[]): FinishArguments {
+	const positional: string[] = [];
+	const parsed: FinishArguments = { outcome: "completed", stdin: false };
+	const valueFlags = new Set(["claim", "outcome", "note"]);
+	for (let index = 0; index < args.length; index++) {
+		const arg = args[index];
+		if (!arg.startsWith("--")) {
+			positional.push(arg);
+			continue;
+		}
+		const key = arg.slice(2);
+		if (key === "stdin") {
+			parsed.stdin = true;
+			continue;
+		}
+		if (!valueFlags.has(key) || !args[index + 1]?.length)
+			die(
+				"Usage: task finish <task-id> --claim <claim-id> [--outcome <outcome>] [--note <text> | --stdin]",
+			);
+		parsed[key as "claim" | "outcome" | "note"] = args[++index];
+	}
+	parsed.taskId = positional.shift();
+	if (positional.length > 0)
+		die(
+			"Usage: task finish <task-id> --claim <claim-id> [--outcome <outcome>] [--note <text> | --stdin]",
+		);
+	return parsed;
+}
+
+export async function cmdFinish(args: string[]) {
+	const parsed = parseFinishArgs(args);
+	if (!parsed.taskId || !parsed.claim)
+		die(
+			"Usage: task finish <task-id> --claim <claim-id> [--outcome <outcome>] [--note <text> | --stdin]",
+		);
+	if (parsed.stdin && parsed.note)
+		die("Usage: task finish accepts either --note <text> or --stdin, not both");
+	if (parsed.outcome.match(/[\r\n]/))
+		usageError("Finish outcome must not contain a line break.");
+	const noteText = (
+		parsed.stdin ? await Bun.stdin.text() : parsed.note
+	)?.trim();
+	if (noteText && noteTextContainsTaskLogMarker(noteText))
+		usageError("Note text must not contain Docket Task Log markers");
+
+	const issuePath = findIssueFile(parsed.taskId);
+	if (!issuePath) die(`Issue not found for '${parsed.taskId}'`);
+	const assignments = readAssignments();
+	const idx = activeClaimIndex(assignments, parsed.taskId, parsed.claim);
+	const assignment = idx === -1 ? undefined : assignments[idx];
+	requireClaim(assignment, parsed.taskId, parsed.claim);
+	if (!assignment || !isParticipant(assignment))
+		die(
+			`Claim '${parsed.claim}' is not an active participant claim for '${parsed.taskId}'`,
+		);
+
+	const completedAt = new Date().toISOString();
+	const note = noteText
+		? {
+				id: `note-${crypto.randomUUID()}`,
+				timestamp: completedAt,
+				kind: "outcome",
+				author: assignment.owner,
+				body: noteText,
+				claim: assignment.claim_id ?? parsed.claim,
+				...(assignment.run_id ? { run: assignment.run_id } : {}),
+			}
+		: null;
+	const changedFiles = [ASSIGNMENTS_PATH, FLOW_PATH, issuePath];
+
+	await commitWithRollback(
+		`finish(${parsed.taskId}): ${assignment.owner}`,
+		changedFiles,
+		async () => {
+			assignments[idx].status = "completed";
+			assignments[idx].completed_at = completedAt;
+			assignments[idx].outcome = parsed.outcome;
+			assignments[idx].note_id = note?.id ?? null;
+			writeAssignments(assignments);
+			const { data, body } = readIssue(issuePath);
+			const hasActiveAssignment = assignments.some(
+				(candidate) =>
+					candidate.task_id === parsed.taskId && candidate.status === "active",
+			);
+			if (!hasActiveAssignment) {
+				data.status = "open";
+				data.owner = "human";
+				data.owner_type = "human";
+				data.agent_id = null;
+			}
+			let updatedBody = body;
+			if (note) updatedBody = appendNote(updatedBody, note);
+			updatedBody = appendHistoryEvent(updatedBody, {
+				id: `finish-${assignment.claim_id ?? parsed.claim}-${completedAt}`,
+				text: `- ${completedAt} — ${assignment.owner} finished participant slot '${assignment.slot}' with outcome '${parsed.outcome}'`,
+			});
+			writeIssue(issuePath, data, updatedBody);
+			await cmdRender();
+			await gitAdd(changedFiles);
+		},
+	);
+	console.log(
+		`Finished participant claim '${parsed.claim}' on '${parsed.taskId}' with outcome '${parsed.outcome}'`,
+	);
+	return {
+		task_id: parsed.taskId,
+		assignment: assignments[idx],
+		note,
+	};
+}
+
 // ── task commits ─────────────────────────────────────────────────────────────
 
 interface GitResult {
@@ -843,7 +1089,9 @@ async function gitIn(worktree: string, args: string[]): Promise<GitResult> {
 }
 
 function isDocketStateCommit(subject: string): boolean {
-	return /^(claim|triage|close|release|note|new|render|doctor)\(/.test(subject);
+	return /^(claim|triage|close|release|finish|note|new|render|doctor)\(/.test(
+		subject,
+	);
 }
 
 async function applicationWorktree(
@@ -1158,9 +1406,10 @@ export async function cmdClose(args: string[]) {
 	const doneDir = join(ROOT, "issues", scope, "done");
 	const newPath = join(doneDir, `${today()}-${taskId}.md`);
 	const assignments = readAssignments();
-	const idx = assignments.findIndex(
-		(a) => a.task_id === taskId && a.status === "active",
-	);
+	const idx = flags.claim
+		? activeClaimIndex(assignments, taskId, flags.claim)
+		: activePrimaryIndex(assignments, taskId);
+	if (idx === -1 && flags.claim) requireClaim(undefined, taskId, flags.claim);
 	const assignment = idx === -1 ? undefined : assignments[idx];
 	requireClaim(assignment, taskId, flags.claim);
 	const config = effectiveConfig();
@@ -1260,19 +1509,24 @@ export async function cmdClose(args: string[]) {
 			);
 			renameSync(issuePath, newPath);
 
-			// Release any active assignment
-			if (idx !== -1) {
-				assignments[idx].status = "released";
-				assignments[idx].released_at = new Date().toISOString();
-				writeAssignments(assignments);
+			// Closing a task releases every still-active primary or participant claim.
+			const releasedAt = new Date().toISOString();
+			let releasedAny = false;
+			for (const assignment of assignments) {
+				if (assignment.task_id === taskId && assignment.status === "active") {
+					assignment.status = "released";
+					assignment.released_at = releasedAt;
+					releasedAny = true;
+				}
 			}
+			if (releasedAny) writeAssignments(assignments);
 
 			await cmdRender();
 
 			// Stage the moved issue and any generated task files in the task worktree.
 			await gitAdd([newPath, FLOW_PATH]);
 			await gitAddUpdate([issuePath]);
-			if (idx !== -1) await gitAdd([ASSIGNMENTS_PATH]);
+			if (releasedAny) await gitAdd([ASSIGNMENTS_PATH]);
 		},
 	);
 	console.log(`Closed '${taskId}' → ${relPath(newPath)}`);
@@ -1301,7 +1555,7 @@ export async function cmdDoctor() {
 			`doctor: expire ${expired.length} lease(s)`,
 			[ASSIGNMENTS_PATH, FLOW_PATH, ...issuePaths],
 			async () => {
-				writeExpiredClaimIssues(expired, now.toISOString());
+				writeExpiredClaimIssues(expired, assignments, now.toISOString());
 				writeAssignments(assignments);
 				await cmdRender();
 				await gitAdd([ASSIGNMENTS_PATH, FLOW_PATH, ...issuePaths]);
@@ -1369,7 +1623,8 @@ export async function cmdDoctor() {
 export async function cmdRender() {
 	const assignments = readAssignments();
 	const active = assignments.filter((a) => a.status === "active");
-	const humans = active.filter((a) => a.owner_type === "human");
+	const primaries = active.filter((a) => !isParticipant(a));
+	const humans = primaries.filter((a) => a.owner_type === "human");
 	const agents = active.filter((a) => a.owner_type === "agent");
 
 	function formatLine(a: Assignment): string {
@@ -1382,7 +1637,10 @@ export async function cmdRender() {
 		const path = issuePath ? relPath(issuePath) : "";
 		const date = a.claimed_at.slice(0, 10);
 		const link = path ? `[${title}](${path})` : title;
-		return `- [-] ${link} (id:${a.task_id}) — ${a.owner} since ${date}`;
+		const participant = isParticipant(a)
+			? ` — participant ${a.role}/${a.slot}${a.run_id ? ` (run ${a.run_id})` : ""}`
+			: "";
+		return `- [-] ${link} (id:${a.task_id}) — ${a.owner}${participant} since ${date}`;
 	}
 
 	let flow = readFlow();
@@ -1559,6 +1817,10 @@ export async function cmdTake(args: string[]) {
 				worktree: flags.worktree ?? null,
 				branch: flags.branch ?? null,
 				leaseMinutes,
+				assignmentType: "primary",
+				role: null,
+				slot: null,
+				runId: null,
 			},
 			assignments,
 			expired,
@@ -1597,8 +1859,14 @@ export async function cmdShow(args: string[]) {
 		(assignment) => assignment.task_id === taskId,
 	);
 	const primaryAssignment =
-		assignmentHistory.find((assignment) => assignment.status === "active") ??
-		null;
+		assignmentHistory.find(
+			(assignment) =>
+				assignment.status === "active" && !isParticipant(assignment),
+		) ?? null;
+	const participantClaims = assignmentHistory.filter(isParticipant);
+	const activeParticipants = participantClaims.filter(
+		(assignment) => assignment.status === "active",
+	);
 	const taskLog = parsed.log ?? { commits: [], notes: [], history: [] };
 	const result = {
 		frontmatter,
@@ -1608,7 +1876,10 @@ export async function cmdShow(args: string[]) {
 		path: relPath(issuePath),
 		scope: scopeFromPath(issuePath),
 		primary_assignment: primaryAssignment,
-		has_active_assignment: primaryAssignment !== null,
+		has_active_assignment:
+			primaryAssignment !== null || activeParticipants.length > 0,
+		participant_claims: participantClaims,
+		active_participants: activeParticipants,
 		assignment_history: assignmentHistory,
 	};
 
@@ -1628,6 +1899,13 @@ export async function cmdShow(args: string[]) {
 			? `Active assignment: ${primaryAssignment.owner} (${primaryAssignment.owner_type}), claimed ${primaryAssignment.claimed_at}`
 			: "Active assignment: none",
 	);
+	console.log(
+		`Participant claims: ${activeParticipants.length} active, ${participantClaims.length} total`,
+	);
+	for (const participant of participantClaims)
+		console.log(
+			`  ${participant.status}: ${participant.owner} as ${participant.role} in ${participant.slot}${participant.run_id ? ` (run ${participant.run_id})` : ""}, claim ${participant.claim_id ?? "none"}, lease ${participant.lease_until ?? "none"}${participant.completed_at ? `, completed ${participant.completed_at}` : ""}${participant.outcome ? `, outcome ${participant.outcome}` : ""}${participant.note_id ? `, note ${participant.note_id}` : ""}`,
+		);
 	console.log(`Assignment history: ${assignmentHistory.length} record(s)`);
 	for (const assignment of assignmentHistory)
 		console.log(

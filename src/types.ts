@@ -25,15 +25,23 @@ export interface IssueFrontmatter {
 
 export interface Assignment {
 	task_id: string;
-	status: "active" | "released" | "expired";
+	status: "active" | "completed" | "released" | "expired";
 	owner: string;
 	owner_type: "human" | "agent";
 	agent_id: string | null;
+	/** Omitted by legacy records; an omitted type is an implicit primary. */
+	assignment_type?: "primary" | "participant" | null;
+	role?: string | null;
+	slot?: string | null;
+	run_id?: string | null;
 	worktree: string | null;
 	branch: string | null;
 	claim_id?: string | null;
 	base_commit?: string | null;
 	claimed_at: string;
 	lease_until: string | null;
+	completed_at?: string | null;
 	released_at: string | null;
+	outcome?: string | null;
+	note_id?: string | null;
 }
