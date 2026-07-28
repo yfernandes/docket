@@ -1,14 +1,14 @@
 ---
 id: aa-06-capture-implementation-commits
 title: AA-06 Capture implementation commits
-status: in-progress
+status: done
 priority: P2
 owner: codex-reconcile
 owner_type: agent
 agent_id: codex-reconcile
 tags: [automation]
 created_at: 2026-07-14
-closed_at: null
+closed_at: 2026-07-28
 ---
 ## Type
 
@@ -84,5 +84,8 @@ Reconciliation: implementation commit fd0385d and the dedicated source/bundle co
 
 - 2026-07-28T07:21:50.291Z — codex-reconcile claimed task
 <!-- docket:event id=claim-2026-07-28T07:21:50.291Z -->
+
+- 2026-07-28 — task closed by codex-reconcile
+<!-- docket:event id=close-2026-07-28 -->
 
 <!-- docket:task-log:end -->
