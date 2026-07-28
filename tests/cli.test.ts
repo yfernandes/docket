@@ -2188,6 +2188,116 @@ describe("crew fixtures and slot visibility", () => {
 			rmSync(dirname(archive), { recursive: true, force: true });
 		}
 	});
+
+	test("Bun setup and update preserve orphan ancestry and user fixtures", () => {
+		const fixture = mkdtempSync(join(tmpdir(), "docket-bun-installer-"));
+		const archive = createUpdateArchive();
+		try {
+			expect(
+				Bun.spawnSync(["git", "init", "-q"], { cwd: fixture }).exitCode,
+			).toBe(0);
+			Bun.spawnSync(["git", "config", "user.email", "installer@example.test"], {
+				cwd: fixture,
+			});
+			Bun.spawnSync(["git", "config", "user.name", "Installer"], {
+				cwd: fixture,
+			});
+			writeFileSync(join(fixture, "README.md"), "host repository\n");
+			expect(
+				Bun.spawnSync(["git", "add", "."], { cwd: fixture }).exitCode,
+			).toBe(0);
+			expect(
+				Bun.spawnSync(["git", "commit", "-qm", "host"], { cwd: fixture })
+					.exitCode,
+			).toBe(0);
+			const env = {
+				...process.env,
+				DOCKET_ARCHIVE_URL: `file://${archive}`,
+			};
+			const setup = Bun.spawnSync(
+				["bun", join(root, "scripts", "setup.ts"), "--yes"],
+				{ cwd: fixture, env },
+			);
+			expect(setup.exitCode, setup.stderr.toString()).toBe(0);
+			const orphanCommit = Bun.spawnSync(
+				["git", "rev-list", "--parents", "-n", "1", "HEAD"],
+				{ cwd: join(fixture, "tasks") },
+			);
+			expect(orphanCommit.exitCode).toBe(0);
+			expect(orphanCommit.stdout.toString().trim().split(/\s+/)).toHaveLength(
+				1,
+			);
+			const bundled = join(
+				fixture,
+				"tasks",
+				"fixtures",
+				"adversarial-review.json",
+			);
+			expect(existsSync(bundled)).toBe(true);
+			writeFileSync(bundled, '{"id":"user-owned"}\n');
+			const update = Bun.spawnSync(
+				["bun", join(root, "scripts", "update.ts"), "--yes"],
+				{ cwd: fixture, env },
+			);
+			expect(update.exitCode, update.stderr.toString()).toBe(0);
+			expect(readFileSync(bundled, "utf-8")).toBe('{"id":"user-owned"}\n');
+		} finally {
+			rmSync(fixture, { recursive: true, force: true });
+			rmSync(dirname(archive), { recursive: true, force: true });
+		}
+	});
+
+	test("Bun setup can base a regular branch on the current HEAD", () => {
+		const fixture = mkdtempSync(
+			join(tmpdir(), "docket-bun-regular-installer-"),
+		);
+		const archive = createUpdateArchive();
+		try {
+			expect(
+				Bun.spawnSync(["git", "init", "-q"], { cwd: fixture }).exitCode,
+			).toBe(0);
+			Bun.spawnSync(["git", "config", "user.email", "installer@example.test"], {
+				cwd: fixture,
+			});
+			Bun.spawnSync(["git", "config", "user.name", "Installer"], {
+				cwd: fixture,
+			});
+			writeFileSync(join(fixture, "host-only.txt"), "host repository\n");
+			expect(
+				Bun.spawnSync(["git", "add", "."], { cwd: fixture }).exitCode,
+			).toBe(0);
+			expect(
+				Bun.spawnSync(["git", "commit", "-qm", "host"], { cwd: fixture })
+					.exitCode,
+			).toBe(0);
+			const hostCommit = Bun.spawnSync(["git", "rev-parse", "HEAD"], {
+				cwd: fixture,
+			})
+				.stdout.toString()
+				.trim();
+			const setup = Bun.spawnSync(
+				["bun", join(root, "scripts", "setup.ts"), "--yes", "--regular-branch"],
+				{
+					cwd: fixture,
+					env: {
+						...process.env,
+						DOCKET_ARCHIVE_URL: `file://${archive}`,
+					},
+				},
+			);
+			expect(setup.exitCode, setup.stderr.toString()).toBe(0);
+			const parentCommit = Bun.spawnSync(["git", "rev-parse", "tasks^"], {
+				cwd: fixture,
+			});
+			expect(parentCommit.exitCode).toBe(0);
+			expect(parentCommit.stdout.toString().trim()).toBe(hostCommit);
+			expect(existsSync(join(fixture, "tasks", "host-only.txt"))).toBe(false);
+			expect(existsSync(join(fixture, "tasks", "task"))).toBe(true);
+		} finally {
+			rmSync(fixture, { recursive: true, force: true });
+			rmSync(dirname(archive), { recursive: true, force: true });
+		}
+	});
 });
 
 describe("implementation commit capture", () => {

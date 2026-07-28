@@ -16,7 +16,10 @@ for all mutations — see `skills/README.md` for agent usage.
 ├── STRUCTURE.md
 ├── scripts/
 │   ├── setup.sh                ← curlable worktree installer
-│   └── update.sh               ← curlable safe updater
+│   ├── update.sh               ← curlable safe updater
+│   ├── setup.ts                ← experimental Bun installer
+│   ├── update.ts               ← experimental Bun updater
+│   └── installer.ts            ← shared Bun implementation
 ├── skills/
 │   ├── README.md               ← agent skill index
 │   ├── core/

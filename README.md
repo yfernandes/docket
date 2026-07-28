@@ -118,6 +118,10 @@ Pass `--regular-branch` to `scripts/setup.sh` when the Docket branch should
 start from the current branch's `HEAD` and share its history. Its worktree still
 contains only Docket files; orphan mode remains the default.
 
+Experimental Bun entrypoints live beside the supported shell scripts as
+`scripts/setup.ts` and `scripts/update.ts`. They are available for parity
+testing but are not yet the documented installation default.
+
 ## Completion policies
 
 `docket.json` can require acceptance criteria, active assignments, clean
