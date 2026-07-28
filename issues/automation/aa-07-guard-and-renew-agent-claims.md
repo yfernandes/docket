@@ -1,7 +1,7 @@
 ---
 id: aa-07-guard-and-renew-agent-claims
 title: AA-07 Guard and renew agent claims
-status: needs-triage
+status: ready-for-agent
 priority: P2
 owner: human
 owner_type: human
@@ -46,3 +46,18 @@ Do not add role slots, participant outcomes, deterministic selection, or local a
 
 - `docs/agent-automation-plan.md#claim-identity`
 - `docs/agent-automation-plan.md#aa-07--claim-ids-and-renewal`
+
+## Task Log
+
+<!-- docket:task-log:start -->
+
+### Commits
+
+### Implementation Notes
+
+### History
+
+- 2026-07-28T06:00:02.910Z — task triaged needs-triage -> ready-for-agent
+<!-- docket:event id=triage-2026-07-28T06:00:02.910Z -->
+
+<!-- docket:task-log:end -->
