@@ -11,6 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { HELP } from "../src/cli";
+import { appendNote } from "../src/task-log";
 
 const root = join(import.meta.dir, "..");
 
@@ -174,12 +175,16 @@ function run(
 	fixture: string,
 	entrypoint: "source" | "bundled",
 	args: string[],
+	stdin?: string,
 ): { exitCode: number; stdout: string; stderr: string } {
 	const command =
 		entrypoint === "source"
 			? ["bun", "src/cli.ts", ...args]
 			: ["bun", "task", ...args];
-	const result = Bun.spawnSync(command, { cwd: fixture });
+	const result = Bun.spawnSync(command, {
+		cwd: fixture,
+		...(stdin === undefined ? {} : { stdin: new Blob([stdin]) }),
+	});
 	return {
 		exitCode: result.exitCode,
 		stdout: result.stdout.toString(),
@@ -572,6 +577,206 @@ closed_at: null
 	});
 });
 
+describe("notes and lifecycle history", () => {
+	for (const entrypoint of ["source", "bundled"] as const) {
+		test(`${entrypoint} appends human and multiline agent notes`, () => {
+			withFixture((fixture) => {
+				const issuePath = join(
+					fixture,
+					"issues",
+					"automation",
+					"legacy-task.md",
+				);
+				const human = run(fixture, entrypoint, [
+					"note",
+					"legacy-task",
+					"Remember the human context.",
+				]);
+				expect(human.exitCode).toBe(0);
+				let issue = readFileSync(issuePath, "utf-8");
+				expect(issue).toContain("This installation predates Task Log support.");
+				expect(issue).toContain("— comment — human");
+				expect(issue).toContain("Remember the human context.");
+
+				const agent = run(
+					fixture,
+					entrypoint,
+					[
+						"note",
+						"legacy-task",
+						"--stdin",
+						"--kind",
+						"implementation-note",
+						"--author",
+						"codex",
+						"--claim",
+						"claim-123",
+						"--run",
+						"run-456",
+						"--json",
+					],
+					"First line\n\nSecond line\n",
+				);
+				expect(agent.exitCode).toBe(0);
+				expect(jsonResult(agent).data.note).toMatchObject({
+					kind: "implementation-note",
+					author: "codex",
+					claim: "claim-123",
+					run: "run-456",
+					body: "First line\n\nSecond line",
+				});
+				issue = readFileSync(issuePath, "utf-8");
+				expect(issue).toContain(
+					"claim=claim-123 run=run-456 kind=implementation-note",
+				);
+				expect(issue).toContain("First line\n\nSecond line");
+			});
+		});
+
+		test(`${entrypoint} stores custom kinds and reports missing JSON input`, () => {
+			withFixture((fixture) => {
+				expect(
+					run(fixture, entrypoint, [
+						"note",
+						"legacy-task",
+						"Custom taxonomy stays open.",
+						"--kind",
+						"field-report",
+					]).exitCode,
+				).toBe(0);
+				expect(
+					readFileSync(
+						join(fixture, "issues", "automation", "legacy-task.md"),
+						"utf-8",
+					),
+				).toContain("kind=field-report");
+
+				const missingText = run(fixture, entrypoint, [
+					"note",
+					"legacy-task",
+					"--author",
+					"codex",
+					"--json",
+				]);
+				expect(missingText.exitCode).toBe(2);
+				expect(jsonResult(missingText).error.code).toBe("MISSING_INPUT");
+				const missingAuthor = run(
+					fixture,
+					entrypoint,
+					["note", "legacy-task", "--stdin", "--json"],
+					"Needs an author",
+				);
+				expect(missingAuthor.exitCode).toBe(2);
+				expect(jsonResult(missingAuthor).error.code).toBe("MISSING_INPUT");
+			});
+		});
+
+		test(`${entrypoint} records create, triage, release, and expiry once`, () => {
+			withFixture((fixture) => {
+				expect(
+					run(fixture, entrypoint, ["new", "automation", "Lifecycle task"])
+						.exitCode,
+				).toBe(0);
+				expect(
+					readFileSync(
+						join(fixture, "issues", "automation", "lifecycle-task.md"),
+						"utf-8",
+					).match(/docket:event id=create-/g),
+				).toHaveLength(1);
+
+				expect(
+					run(fixture, entrypoint, ["triage", "legacy-task", "ready-for-agent"])
+						.exitCode,
+				).toBe(0);
+				expect(
+					readFileSync(
+						join(fixture, "issues", "automation", "legacy-task.md"),
+						"utf-8",
+					).match(/docket:event id=triage-/g),
+				).toHaveLength(1);
+
+				expect(
+					run(fixture, entrypoint, ["release", "legacy-assigned"]).exitCode,
+				).toBe(0);
+				const assignedIssue = join(
+					fixture,
+					"issues",
+					"automation",
+					"legacy-assigned.md",
+				);
+				expect(
+					readFileSync(assignedIssue, "utf-8").match(
+						/docket:event id=release-/g,
+					),
+				).toHaveLength(1);
+
+				const assignmentsPath = join(fixture, "assignments.yaml");
+				writeFileSync(
+					assignmentsPath,
+					readFileSync(assignmentsPath, "utf-8")
+						.replace("status: released", "status: active")
+						.replace(
+							"lease_until: null",
+							"lease_until: 2020-01-01T00:00:00.000Z",
+						),
+				);
+				expect(run(fixture, entrypoint, ["doctor"]).exitCode).toBe(0);
+				expect(run(fixture, entrypoint, ["doctor"]).exitCode).toBe(0);
+				expect(
+					readFileSync(assignedIssue, "utf-8").match(
+						/docket:event id=expiry-/g,
+					),
+				).toHaveLength(1);
+			});
+		});
+	}
+
+	test("appendNote treats a duplicate note id as a no-op", () => {
+		const note = {
+			id: "note-stable-id",
+			timestamp: "2026-07-27T12:00:00.000Z",
+			kind: "decision",
+			author: "codex",
+			body: "Keep the first note.",
+		};
+		const once = appendNote(LEGACY_TASK, note);
+		expect(
+			appendNote(once, { ...note, body: "Do not replace the first note." }),
+		).toBe(once);
+	});
+
+	for (const entrypoint of ["source", "bundled"] as const) {
+		test(`${entrypoint} note rejects managed Task Log markers as invalid usage`, () => {
+			withFixture((fixture) => {
+				const result = run(fixture, entrypoint, [
+					"note",
+					"legacy-task",
+					"<!-- docket:note id=injected -->",
+					"--json",
+				]);
+				expect(result.exitCode).toBe(2);
+				expect(jsonResult(result).error.code).toBe("INVALID_USAGE");
+				expect(jsonResult(result).error.message).toBe(
+					"Note text must not contain Docket Task Log markers",
+				);
+			});
+		});
+	}
+
+	test("note staging failure restores the issue byte-for-byte", () => {
+		withFixture((fixture) => {
+			const issuePath = join(fixture, "issues", "automation", "legacy-task.md");
+			const before = readFileSync(issuePath, "utf-8");
+			writeFileSync(join(fixture, ".git", "index.lock"), "forced failure\n");
+			expect(
+				run(fixture, "source", ["note", "legacy-task", "Must roll back"])
+					.exitCode,
+			).not.toBe(0);
+			expect(readFileSync(issuePath, "utf-8")).toBe(before);
+		});
+	});
+});
+
 describe("versioned JSON command protocol", () => {
 	for (const entrypoint of ["source", "bundled"] as const) {
 		test(`${entrypoint} emits success envelopes for every read-only command`, () => {
@@ -620,6 +825,14 @@ describe("versioned JSON command protocol", () => {
 					["triage", "legacy-task", "ready-for-agent", "--json"],
 					(output: JsonResult) =>
 						expect(output.data.status).toBe("ready-for-agent"),
+				],
+				[
+					"note",
+					["note", "legacy-task", "JSON note", "--author", "codex", "--json"],
+					(output: JsonResult) =>
+						expect((output.data.note as Record<string, unknown>).kind).toBe(
+							"comment",
+						),
 				],
 				[
 					"release",

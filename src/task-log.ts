@@ -8,6 +8,16 @@ export interface TaskLogNote {
 	attributes: Record<string, string>;
 }
 
+export interface NewTaskLogNote {
+	id: string;
+	timestamp: string;
+	kind: string;
+	author: string;
+	body: string;
+	claim?: string;
+	run?: string;
+}
+
 export interface TaskLogHistoryEvent {
 	id: string;
 	text: string;
@@ -27,6 +37,12 @@ export interface ParsedTaskLog {
 
 const START = "<!-- docket:task-log:start -->";
 const END = "<!-- docket:task-log:end -->";
+const NOTE_MARKERS = [
+	START,
+	END,
+	"<!-- docket:note ",
+	"<!-- docket:event ",
+] as const;
 const EMPTY_LOG = `## Task Log
 
 ${START}
@@ -57,8 +73,18 @@ function sectionEnd(content: string, heading: string): number | null {
 	const start = content.indexOf(heading);
 	if (start === -1) return null;
 	const after = start + heading.length;
-	const next = content.slice(after).match(/\n###?\s+/);
-	return next?.index === undefined ? content.length : after + next.index;
+	const nextHeading =
+		heading === "### Commits"
+			? "### Implementation Notes"
+			: heading === "### Implementation Notes"
+				? "### History"
+				: null;
+	if (!nextHeading) return content.length;
+	const next =
+		heading === "### Implementation Notes"
+			? content.lastIndexOf(`\n${nextHeading}`)
+			: content.indexOf(`\n${nextHeading}`, after);
+	return next < after ? content.length : next;
 }
 
 function insertInSection(
@@ -149,6 +175,35 @@ export function appendHistoryEvent(
 	const content = withLog.slice(0, end);
 	const suffix = withLog.slice(end);
 	return `${insertInSection(content, "### History", `${event.text}\n<!-- docket:event id=${event.id} -->`).trimEnd()}\n\n${suffix}`;
+}
+
+export function appendNote(body: string, note: NewTaskLogNote): string {
+	if (noteTextContainsTaskLogMarker(note.body))
+		throw new Error("Note text must not contain Docket Task Log markers");
+	const parsed = parseTaskLog(body);
+	if (parsed.errors.length > 0) throw new Error(parsed.errors.join("; "));
+	if (parsed.log?.notes.some((existing) => existing.id === note.id))
+		return body;
+	const withLog = ensureTaskLog(body);
+	const end = withLog.indexOf(END);
+	const attributes = [
+		`id=${note.id}`,
+		note.claim ? `claim=${note.claim}` : null,
+		note.run ? `run=${note.run}` : null,
+		`kind=${note.kind}`,
+	].filter(Boolean);
+	const timestamp = new Date(note.timestamp);
+	const headingTimestamp = `${timestamp.toISOString().slice(0, 10)} ${timestamp.toISOString().slice(11, 16)} UTC`;
+	const entry = `#### ${headingTimestamp} — ${note.kind} — ${note.author}
+
+<!-- docket:note ${attributes.join(" ")} -->
+
+${note.body}`;
+	return `${insertInSection(withLog.slice(0, end), "### Implementation Notes", entry).trimEnd()}\n\n${withLog.slice(end)}`;
+}
+
+export function noteTextContainsTaskLogMarker(text: string): boolean {
+	return NOTE_MARKERS.some((marker) => text.includes(marker));
 }
 
 export function appendCommit(body: string, commit: TaskLogCommit): string {

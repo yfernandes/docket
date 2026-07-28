@@ -560,6 +560,12 @@ function extractSection(content, header) {
 // src/task-log.ts
 var START = "<!-- docket:task-log:start -->";
 var END = "<!-- docket:task-log:end -->";
+var NOTE_MARKERS = [
+  START,
+  END,
+  "<!-- docket:note ",
+  "<!-- docket:event "
+];
 var EMPTY_LOG = `## Task Log
 
 ${START}
@@ -589,8 +595,13 @@ function sectionEnd(content, heading) {
   if (start === -1)
     return null;
   const after = start + heading.length;
-  const next = content.slice(after).match(/\n###?\s+/);
-  return next?.index === undefined ? content.length : after + next.index;
+  const nextHeading = heading === "### Commits" ? "### Implementation Notes" : heading === "### Implementation Notes" ? "### History" : null;
+  if (!nextHeading)
+    return content.length;
+  const next = heading === "### Implementation Notes" ? content.lastIndexOf(`
+${nextHeading}`) : content.indexOf(`
+${nextHeading}`, after);
+  return next < after ? content.length : next;
 }
 function insertInSection(content, heading, entry) {
   const end = sectionEnd(content, heading);
@@ -682,6 +693,36 @@ function appendHistoryEvent(body, event) {
 <!-- docket:event id=${event.id} -->`).trimEnd()}
 
 ${suffix}`;
+}
+function appendNote(body, note) {
+  if (noteTextContainsTaskLogMarker(note.body))
+    throw new Error("Note text must not contain Docket Task Log markers");
+  const parsed = parseTaskLog(body);
+  if (parsed.errors.length > 0)
+    throw new Error(parsed.errors.join("; "));
+  if (parsed.log?.notes.some((existing) => existing.id === note.id))
+    return body;
+  const withLog = ensureTaskLog(body);
+  const end = withLog.indexOf(END);
+  const attributes2 = [
+    `id=${note.id}`,
+    note.claim ? `claim=${note.claim}` : null,
+    note.run ? `run=${note.run}` : null,
+    `kind=${note.kind}`
+  ].filter(Boolean);
+  const timestamp = new Date(note.timestamp);
+  const headingTimestamp = `${timestamp.toISOString().slice(0, 10)} ${timestamp.toISOString().slice(11, 16)} UTC`;
+  const entry = `#### ${headingTimestamp} \u2014 ${note.kind} \u2014 ${note.author}
+
+<!-- docket:note ${attributes2.join(" ")} -->
+
+${note.body}`;
+  return `${insertInSection(withLog.slice(0, end), "### Implementation Notes", entry).trimEnd()}
+
+${withLog.slice(end)}`;
+}
+function noteTextContainsTaskLogMarker(text) {
+  return NOTE_MARKERS.some((marker) => text.includes(marker));
 }
 function appendCommit(body, commit) {
   const parsed = parseTaskLog(body);
@@ -942,8 +983,16 @@ async function cmdNew(args) {
     created_at: today(),
     closed_at: null
   };
-  writeFileSync2(filePath, `${serializeFrontmatter(fm)}
-${templateBody}`);
+  const createdAt = new Date().toISOString();
+  await commitWithRollback(`new(${slug})`, [filePath], async () => {
+    const body = appendHistoryEvent(templateBody, {
+      id: `create-${createdAt}`,
+      text: `- ${createdAt} \u2014 task created by human`
+    });
+    writeFileSync2(filePath, `${serializeFrontmatter(fm)}
+${body}`);
+    await gitAdd([filePath]);
+  });
   console.log(relPath(filePath));
   return { task: fm, path: relPath(filePath) };
 }
@@ -1034,8 +1083,12 @@ async function cmdTriage(args) {
   const { data, body } = readIssue(issuePath);
   const previousStatus = data.status;
   data.status = newStatus;
+  const triagedAt = new Date().toISOString();
   await commitWithRollback(`triage(${taskId}): ${previousStatus} -> ${newStatus}`, [issuePath], async () => {
-    writeIssue(issuePath, data, body);
+    writeIssue(issuePath, data, appendHistoryEvent(body, {
+      id: `triage-${triagedAt}`,
+      text: `- ${triagedAt} \u2014 task triaged ${previousStatus} -> ${newStatus}`
+    }));
     await gitAdd([issuePath]);
   });
   console.log(`Triaged '${taskId}' -> '${newStatus}'`);
@@ -1078,6 +1131,80 @@ async function cmdRelease(args) {
   });
   console.log(`Released '${taskId}'`);
   return { task_id: taskId, assignment: assignments[idx] };
+}
+function parseNoteArgs(args) {
+  const positional = [];
+  const parsed = { kind: "comment", stdin: false };
+  const valueFlags = new Set(["kind", "author", "claim", "run"]);
+  for (let index = 0;index < args.length; index++) {
+    const arg = args[index];
+    if (!arg.startsWith("--")) {
+      positional.push(arg);
+      continue;
+    }
+    const key = arg.slice(2);
+    if (key === "stdin") {
+      parsed.stdin = true;
+      continue;
+    }
+    if (!valueFlags.has(key) || !args[index + 1]?.length) {
+      die2("Usage: task note <task-id> [text] [--kind <kind>] [--author <name>] [--claim <claim-id>] [--run <run-id>] [--stdin]");
+    }
+    parsed[key] = args[++index];
+  }
+  parsed.taskId = positional.shift();
+  if (positional.length > 0)
+    parsed.text = positional.join(" ");
+  return parsed;
+}
+async function cmdNote(args) {
+  const parsed = parseNoteArgs(args);
+  if (!parsed.taskId)
+    die2("Usage: task note <task-id> [text] [--kind <kind>] [--author <name>] [--claim <claim-id>] [--run <run-id>] [--stdin]");
+  if (parsed.stdin && parsed.text)
+    die2("Usage: task note accepts either positional text or --stdin, not both");
+  const issuePath = findIssueFile(parsed.taskId);
+  if (!issuePath)
+    die2(`Issue not found for '${parsed.taskId}'`);
+  const text = (parsed.stdin ? await Bun.stdin.text() : parsed.text)?.trim();
+  if (!text)
+    usageError("Note text is required.", "MISSING_INPUT", {
+      task_id: parsed.taskId,
+      input: parsed.stdin ? "stdin" : "positional"
+    });
+  if (noteTextContainsTaskLogMarker(text))
+    usageError("Note text must not contain Docket Task Log markers");
+  const activeAssignment = readAssignments().find((assignment) => assignment.task_id === parsed.taskId && assignment.status === "active");
+  const author = parsed.author ?? activeAssignment?.owner ?? (isJsonMode() ? undefined : "human");
+  if (!author)
+    usageError("Note author is required when the task has no active assignment.", "MISSING_INPUT", { task_id: parsed.taskId, field: "author" });
+  for (const [field, value] of [
+    ["kind", parsed.kind],
+    ["claim", parsed.claim],
+    ["run", parsed.run]
+  ]) {
+    if (value?.match(/[\s=>]/))
+      usageError(`Note ${field} must not contain whitespace, '=' or '>'.`);
+  }
+  if (author.match(/[\r\n]/))
+    usageError("Note author must not contain a line break.");
+  const timestamp = new Date().toISOString();
+  const note = {
+    id: `note-${timestamp}`,
+    timestamp,
+    kind: parsed.kind,
+    author,
+    body: text,
+    ...parsed.claim ? { claim: parsed.claim } : {},
+    ...parsed.run ? { run: parsed.run } : {}
+  };
+  await commitWithRollback(`note(${parsed.taskId}): ${parsed.kind}`, [issuePath], async () => {
+    const { data, body } = readIssue(issuePath);
+    writeIssue(issuePath, data, appendNote(body, note));
+    await gitAdd([issuePath]);
+  });
+  console.log(`Added ${parsed.kind} note to '${parsed.taskId}'`);
+  return { task_id: parsed.taskId, note };
 }
 function acceptanceFailures(body) {
   const heading = /^## Acceptance Criteria\s*$/m.exec(body);
@@ -1218,20 +1345,32 @@ async function cmdClose(args) {
 async function cmdDoctor() {
   const assignments = readAssignments();
   const now = new Date;
-  let mutated = false;
   const warnings = [];
-  for (const a of assignments) {
-    if (a.status === "active" && a.lease_until && new Date(a.lease_until) < now) {
-      a.status = "expired";
-      const message = `EXPIRED: ${a.task_id} (lease was ${a.lease_until})`;
-      warnings.push(message);
-      console.warn(message);
-      mutated = true;
-    }
+  const expired = assignments.filter((assignment) => assignment.status === "active" && assignment.lease_until && new Date(assignment.lease_until) < now);
+  for (const assignment of expired) {
+    const message = `EXPIRED: ${assignment.task_id} (lease was ${assignment.lease_until})`;
+    warnings.push(message);
+    console.warn(message);
   }
-  if (mutated) {
-    writeAssignments(assignments);
-    await cmdRender();
+  if (expired.length > 0) {
+    const issuePaths = expired.map((assignment) => findIssueFile(assignment.task_id)).filter((path) => path !== null);
+    await commitWithRollback(`doctor: expire ${expired.length} lease(s)`, [ASSIGNMENTS_PATH, FLOW_PATH, ...issuePaths], async () => {
+      for (const assignment of expired) {
+        assignment.status = "expired";
+        const issuePath = findIssueFile(assignment.task_id);
+        if (!issuePath)
+          continue;
+        const { data, body } = readIssue(issuePath);
+        const expiredAt = now.toISOString();
+        writeIssue(issuePath, data, appendHistoryEvent(body, {
+          id: `expiry-${assignment.lease_until}`,
+          text: `- ${expiredAt} \u2014 ${assignment.owner} claim expired`
+        }));
+      }
+      writeAssignments(assignments);
+      await cmdRender();
+      await gitAdd([ASSIGNMENTS_PATH, FLOW_PATH, ...issuePaths]);
+    });
   }
   const activeIds = new Set(assignments.filter((a) => a.status === "active").map((a) => a.task_id));
   const issueFiles = walkIssues();
@@ -1270,7 +1409,7 @@ async function cmdDoctor() {
     }
   }
   console.log("Doctor check complete.");
-  return { mutated, warnings };
+  return { mutated: expired.length > 0, warnings };
 }
 async function cmdRender() {
   const assignments = readAssignments();
@@ -1607,6 +1746,13 @@ Commands:
     --json                  JSON output
   show <task-id>            Show complete task context
     --json                  JSON output
+  note <task-id> [text]     Append a durable implementation note
+    --kind <kind>           Note kind (default: comment; custom kinds allowed)
+    --author <name>         Note author (defaults to active owner)
+    --claim <claim-id>      Optional claim attribution
+    --run <run-id>          Optional run attribution
+    --stdin                 Read note text from stdin
+    --json                  JSON output
   ingest                    Process Issue Scratchpad via AI
     --backend <name>        Force backend: gemini, claude, copilot, codex, api
                             (default: auto-detect from PATH, fallback to api)
@@ -1644,6 +1790,8 @@ async function main(args = process.argv.slice(2)) {
         return cmdList(rest);
       case "show":
         return cmdShow(rest);
+      case "note":
+        return cmdNote(rest);
       case "ingest":
         return cmdIngest(rest);
       case "help":

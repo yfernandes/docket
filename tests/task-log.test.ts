@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	appendCommit,
 	appendHistoryEvent,
+	appendNote,
 	parseTaskLog,
 } from "../src/task-log";
 
@@ -53,5 +54,46 @@ describe("Task Log", () => {
 
 <!-- docket:task-log:end -->`;
 		expect(parseTaskLog(body).errors).toContain("Duplicate Task Log event ID");
+	});
+
+	test("rejects note text containing managed Task Log markers", () => {
+		for (const marker of [
+			"<!-- docket:task-log:start -->",
+			"<!-- docket:task-log:end -->",
+			"<!-- docket:note id=injected -->",
+			"<!-- docket:event id=injected -->",
+		]) {
+			expect(() =>
+				appendNote("Context\n", {
+					id: "note-safe",
+					timestamp: "2026-07-27T12:00:00.000Z",
+					kind: "comment",
+					author: "codex",
+					body: `Unsafe marker: ${marker}`,
+				}),
+			).toThrow("Note text must not contain Docket Task Log markers");
+		}
+	});
+
+	test("appends after a prior note body containing Markdown headings", () => {
+		const first = appendNote("Context\n", {
+			id: "note-first",
+			timestamp: "2026-07-27T12:00:00.000Z",
+			kind: "comment",
+			author: "codex",
+			body: "Before heading.\n\n## Heading\n\n### History\n\nAfter heading.",
+		});
+		const second = appendNote(first, {
+			id: "note-second",
+			timestamp: "2026-07-27T12:01:00.000Z",
+			kind: "decision",
+			author: "codex",
+			body: "Second note.",
+		});
+
+		expect(second.indexOf("After heading.")).toBeLessThan(
+			second.indexOf("#### 2026-07-27 12:01 UTC"),
+		);
+		expect(parseTaskLog(second).errors).toEqual([]);
 	});
 });

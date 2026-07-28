@@ -48,7 +48,13 @@ import {
 	writeIssue,
 } from "./repository";
 import { ROOT } from "./runtime";
-import { appendCommit, appendHistoryEvent, parseTaskLog } from "./task-log";
+import {
+	appendCommit,
+	appendHistoryEvent,
+	appendNote,
+	noteTextContainsTaskLogMarker,
+	parseTaskLog,
+} from "./task-log";
 import type { Assignment, IssueFrontmatter } from "./types";
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -334,7 +340,15 @@ export async function cmdNew(args: string[]) {
 		closed_at: null,
 	};
 
-	writeFileSync(filePath, `${serializeFrontmatter(fm)}\n${templateBody}`);
+	const createdAt = new Date().toISOString();
+	await commitWithRollback(`new(${slug})`, [filePath], async () => {
+		const body = appendHistoryEvent(templateBody, {
+			id: `create-${createdAt}`,
+			text: `- ${createdAt} — task created by human`,
+		});
+		writeFileSync(filePath, `${serializeFrontmatter(fm)}\n${body}`);
+		await gitAdd([filePath]);
+	});
 	console.log(relPath(filePath));
 	return { task: fm, path: relPath(filePath) };
 }
@@ -457,12 +471,20 @@ export async function cmdTriage(args: string[]) {
 	const { data, body } = readIssue(issuePath);
 	const previousStatus = data.status;
 	data.status = newStatus as IssueFrontmatter["status"];
+	const triagedAt = new Date().toISOString();
 
 	await commitWithRollback(
 		`triage(${taskId}): ${previousStatus} -> ${newStatus}`,
 		[issuePath],
 		async () => {
-			writeIssue(issuePath, data, body);
+			writeIssue(
+				issuePath,
+				data,
+				appendHistoryEvent(body, {
+					id: `triage-${triagedAt}`,
+					text: `- ${triagedAt} — task triaged ${previousStatus} -> ${newStatus}`,
+				}),
+			);
 			await gitAdd([issuePath]);
 		},
 	);
@@ -517,6 +539,118 @@ export async function cmdRelease(args: string[]) {
 	});
 	console.log(`Released '${taskId}'`);
 	return { task_id: taskId, assignment: assignments[idx] };
+}
+
+// ── task note ────────────────────────────────────────────────────────────────
+
+interface NoteArguments {
+	taskId?: string;
+	text?: string;
+	kind: string;
+	author?: string;
+	claim?: string;
+	run?: string;
+	stdin: boolean;
+}
+
+function parseNoteArgs(args: string[]): NoteArguments {
+	const positional: string[] = [];
+	const parsed: NoteArguments = { kind: "comment", stdin: false };
+	const valueFlags = new Set(["kind", "author", "claim", "run"]);
+
+	for (let index = 0; index < args.length; index++) {
+		const arg = args[index];
+		if (!arg.startsWith("--")) {
+			positional.push(arg);
+			continue;
+		}
+		const key = arg.slice(2);
+		if (key === "stdin") {
+			parsed.stdin = true;
+			continue;
+		}
+		if (!valueFlags.has(key) || !args[index + 1]?.length) {
+			die(
+				"Usage: task note <task-id> [text] [--kind <kind>] [--author <name>] [--claim <claim-id>] [--run <run-id>] [--stdin]",
+			);
+		}
+		parsed[key as "kind" | "author" | "claim" | "run"] = args[++index];
+	}
+
+	parsed.taskId = positional.shift();
+	if (positional.length > 0) parsed.text = positional.join(" ");
+	return parsed;
+}
+
+export async function cmdNote(args: string[]) {
+	const parsed = parseNoteArgs(args);
+	if (!parsed.taskId)
+		die(
+			"Usage: task note <task-id> [text] [--kind <kind>] [--author <name>] [--claim <claim-id>] [--run <run-id>] [--stdin]",
+		);
+	if (parsed.stdin && parsed.text)
+		die("Usage: task note accepts either positional text or --stdin, not both");
+
+	const issuePath = findIssueFile(parsed.taskId);
+	if (!issuePath) die(`Issue not found for '${parsed.taskId}'`);
+
+	const text = (parsed.stdin ? await Bun.stdin.text() : parsed.text)?.trim();
+	if (!text)
+		usageError("Note text is required.", "MISSING_INPUT", {
+			task_id: parsed.taskId,
+			input: parsed.stdin ? "stdin" : "positional",
+		});
+	if (noteTextContainsTaskLogMarker(text))
+		usageError("Note text must not contain Docket Task Log markers");
+
+	const activeAssignment = readAssignments().find(
+		(assignment) =>
+			assignment.task_id === parsed.taskId && assignment.status === "active",
+	);
+	const author =
+		parsed.author ??
+		activeAssignment?.owner ??
+		(isJsonMode() ? undefined : "human");
+	if (!author)
+		usageError(
+			"Note author is required when the task has no active assignment.",
+			"MISSING_INPUT",
+			{ task_id: parsed.taskId, field: "author" },
+		);
+
+	for (const [field, value] of [
+		["kind", parsed.kind],
+		["claim", parsed.claim],
+		["run", parsed.run],
+	] as const) {
+		if (value?.match(/[\s=>]/))
+			usageError(`Note ${field} must not contain whitespace, '=' or '>'.`);
+	}
+	if (author.match(/[\r\n]/))
+		usageError("Note author must not contain a line break.");
+
+	const timestamp = new Date().toISOString();
+	const note = {
+		id: `note-${timestamp}`,
+		timestamp,
+		kind: parsed.kind,
+		author,
+		body: text,
+		...(parsed.claim ? { claim: parsed.claim } : {}),
+		...(parsed.run ? { run: parsed.run } : {}),
+	};
+
+	await commitWithRollback(
+		`note(${parsed.taskId}): ${parsed.kind}`,
+		[issuePath],
+		async () => {
+			const { data, body } = readIssue(issuePath);
+			writeIssue(issuePath, data, appendNote(body, note));
+			await gitAdd([issuePath]);
+		},
+	);
+	console.log(`Added ${parsed.kind} note to '${parsed.taskId}'`);
+	return { task_id: parsed.taskId, note };
 }
 
 // ── task close ────────────────────────────────────────────────────────────────
@@ -746,26 +880,48 @@ export async function cmdClose(args: string[]) {
 export async function cmdDoctor() {
 	const assignments = readAssignments();
 	const now = new Date();
-	let mutated = false;
 	const warnings: string[] = [];
+	const expired = assignments.filter(
+		(assignment) =>
+			assignment.status === "active" &&
+			assignment.lease_until &&
+			new Date(assignment.lease_until) < now,
+	);
 
-	for (const a of assignments) {
-		if (
-			a.status === "active" &&
-			a.lease_until &&
-			new Date(a.lease_until) < now
-		) {
-			a.status = "expired";
-			const message = `EXPIRED: ${a.task_id} (lease was ${a.lease_until})`;
-			warnings.push(message);
-			console.warn(message);
-			mutated = true;
-		}
+	for (const assignment of expired) {
+		const message = `EXPIRED: ${assignment.task_id} (lease was ${assignment.lease_until})`;
+		warnings.push(message);
+		console.warn(message);
 	}
 
-	if (mutated) {
-		writeAssignments(assignments);
-		await cmdRender();
+	if (expired.length > 0) {
+		const issuePaths = expired
+			.map((assignment) => findIssueFile(assignment.task_id))
+			.filter((path): path is string => path !== null);
+		await commitWithRollback(
+			`doctor: expire ${expired.length} lease(s)`,
+			[ASSIGNMENTS_PATH, FLOW_PATH, ...issuePaths],
+			async () => {
+				for (const assignment of expired) {
+					assignment.status = "expired";
+					const issuePath = findIssueFile(assignment.task_id);
+					if (!issuePath) continue;
+					const { data, body } = readIssue(issuePath);
+					const expiredAt = now.toISOString();
+					writeIssue(
+						issuePath,
+						data,
+						appendHistoryEvent(body, {
+							id: `expiry-${assignment.lease_until}`,
+							text: `- ${expiredAt} — ${assignment.owner} claim expired`,
+						}),
+					);
+				}
+				writeAssignments(assignments);
+				await cmdRender();
+				await gitAdd([ASSIGNMENTS_PATH, FLOW_PATH, ...issuePaths]);
+			},
+		);
 	}
 
 	const activeIds = new Set(
@@ -820,7 +976,7 @@ export async function cmdDoctor() {
 	}
 
 	console.log("Doctor check complete.");
-	return { mutated, warnings };
+	return { mutated: expired.length > 0, warnings };
 }
 
 // ── task render ───────────────────────────────────────────────────────────────

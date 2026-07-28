@@ -10,6 +10,7 @@ import {
 	cmdLint,
 	cmdList,
 	cmdNew,
+	cmdNote,
 	cmdRelease,
 	cmdRender,
 	cmdShow,
@@ -49,6 +50,13 @@ Commands:
     --json                  JSON output
   show <task-id>            Show complete task context
     --json                  JSON output
+  note <task-id> [text]     Append a durable implementation note
+    --kind <kind>           Note kind (default: comment; custom kinds allowed)
+    --author <name>         Note author (defaults to active owner)
+    --claim <claim-id>      Optional claim attribution
+    --run <run-id>          Optional run attribution
+    --stdin                 Read note text from stdin
+    --json                  JSON output
   ingest                    Process Issue Scratchpad via AI
     --backend <name>        Force backend: gemini, claude, copilot, codex, api
                             (default: auto-detect from PATH, fallback to api)
@@ -87,6 +95,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 				return cmdList(rest);
 			case "show":
 				return cmdShow(rest);
+			case "note":
+				return cmdNote(rest);
 			case "ingest":
 				return cmdIngest(rest);
 			case "help":
