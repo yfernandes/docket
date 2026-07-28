@@ -1,11 +1,11 @@
 ---
 id: aa-11-add-crew-fixtures-and-slot-visibility
 title: AA-11 Add crew fixtures and slot visibility
-status: open
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex-reconcile
+owner_type: agent
+agent_id: codex-reconcile
 tags: [automation]
 created_at: 2026-07-14
 closed_at: null
@@ -70,5 +70,8 @@ Implemented 74783e3: JSON crew fixtures, deterministic slot visibility, fixture-
 
 - 2026-07-28T07:11:37.309Z — codex-aa11 released task
 <!-- docket:event id=release-2026-07-28T07:11:37.309Z -->
+
+- 2026-07-28T07:11:37.364Z — codex-reconcile claimed task
+<!-- docket:event id=claim-2026-07-28T07:11:37.364Z -->
 
 <!-- docket:task-log:end -->
