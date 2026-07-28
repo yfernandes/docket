@@ -63,6 +63,12 @@ Do not claim the selected task, implement filesystem locking, or calculate crew 
 
 Implemented deterministic read-only task next in bf7e3a1. It shares list filters, defaults to ready-for-agent, selects P1-P4 then oldest creation date then ID, returns task:null for an empty JSON selection, and has source/bundled regression coverage. Verified bun run build, bun test (62 pass), bun run check, task lint, task doctor, and git diff --check.
 
+#### 2026-07-28 07:10 UTC — blocker — codex-reconcile
+
+<!-- docket:note id=note-2026-07-28T07:10:19.172Z claim=3c38db3b-9c40-470e-8360-fe33dcaf2e72 kind=blocker -->
+
+Reconciliation: all acceptance criteria were independently verified and implementation commit bf7e3a1 is recorded. Guarded close remains blocked because commit evidence requires the full task slug while the verified feature commit subject uses the canonical short ID aa-08. No override used.
+
 ### History
 
 - 2026-07-28T06:05:24.195Z — task triaged needs-triage -> ready-for-agent
