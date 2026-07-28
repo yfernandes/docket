@@ -22,16 +22,16 @@ Add `task finish` so a participant can record an outcome and optional note witho
 
 ## Acceptance Criteria
 
-- [ ] At most one primary assignment can be active for a task.
-- [ ] Multiple participant claims can coexist in distinct slots.
-- [ ] Participant records expose role, slot, run, claim ID, and lease.
-- [ ] `finish` completes one matching claim and leaves the task open.
-- [ ] Recognized and custom outcomes are supported.
-- [ ] An optional finish note is added atomically to the Task Log.
-- [ ] Stale claim IDs cannot finish replacement assignments.
-- [ ] Legacy assignment records remain readable.
-- [ ] `show` reports primary and participant state clearly.
-- [ ] Human single-owner workflows remain unchanged.
+- [x] At most one primary assignment can be active for a task.
+- [x] Multiple participant claims can coexist in distinct slots.
+- [x] Participant records expose role, slot, run, claim ID, and lease.
+- [x] `finish` completes one matching claim and leaves the task open.
+- [x] Recognized and custom outcomes are supported.
+- [x] An optional finish note is added atomically to the Task Log.
+- [x] Stale claim IDs cannot finish replacement assignments.
+- [x] Legacy assignment records remain readable.
+- [x] `show` reports primary and participant state clearly.
+- [x] Human single-owner workflows remain unchanged.
 
 ## Blocked by
 
@@ -55,6 +55,9 @@ Do not enforce fixture capacity, stage ordering, agent launching, or model confi
 <!-- docket:task-log:start -->
 
 ### Commits
+
+- `e5bfbeab2cfe` feat(aa-10): coordinate participant roles and outcomes
+<!-- docket:commit hash=e5bfbeab2cfee33e13bc8d37566e956f4adb95fd -->
 
 ### Implementation Notes
 
