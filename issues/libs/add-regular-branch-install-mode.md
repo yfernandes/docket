@@ -1,11 +1,11 @@
 ---
 id: add-regular-branch-install-mode
 title: Add regular-branch install mode
-status: open
+status: in-progress
 priority: P2
-owner: human
-owner_type: human
-agent_id: null
+owner: codex
+owner_type: agent
+agent_id: codex
 tags: [libs]
 created_at: 2026-07-28
 closed_at: null
@@ -63,5 +63,8 @@ from the current `HEAD` instead of an orphan branch.
 
 - 2026-07-28T12:33:15.741Z — codex released task
 <!-- docket:event id=release-2026-07-28T12:33:15.741Z -->
+
+- 2026-07-28T12:34:39.186Z — codex claimed task
+<!-- docket:event id=claim-2026-07-28T12:34:39.186Z -->
 
 <!-- docket:task-log:end -->
